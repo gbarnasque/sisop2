@@ -1,5 +1,5 @@
 CPP = g++
-FLAGS = -Wall -g -Werror
+FLAGS = -Wall -g -Werror -pthread
 
 all: app_servidor app_cliente
 
