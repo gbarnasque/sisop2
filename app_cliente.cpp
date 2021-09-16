@@ -1,5 +1,6 @@
 #include <iostream>
 #include <signal.h> //signal
+#include <string.h>
 
 #include "Cliente.hpp"
 
@@ -15,13 +16,16 @@ int main(int argc, char** argv) {
         Cliente::help();
         exit(0);
     }
-
+    
     signal(SIGINT, handleSignal);
     
-    char* ip = argv[2];
-    char* port = argv[3];
-
-    Cliente* c = new Cliente(ip, port);
+   /* char* ip;
+    char* port;
+    strcpy(ip, argv[2]);
+    strcpy(port, argv[3]);
+*/
+    std::cout << argv[2] << ":" << argv[3] << std::endl;
+    Cliente* c = new Cliente(argv[2], argv[3]);
     Signalhandler = c;
     
     c->interact();

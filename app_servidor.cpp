@@ -7,9 +7,9 @@ int main(int argc, char** argv) {
         exit(0);
     }
 
-    Servidor s(argv[1]);
-    s.info();
-    s.start();
+    Servidor* s = new Servidor(argv[1]);
+    s->info();
+    s->start();
 
     return 1;
 }
