@@ -1,17 +1,6 @@
-#include <iostream>
-#include <string>
 
-#include <cstdio>
-#include <sys/socket.h>
-#include <cstdlib>
-#include <netinet/in.h>
-#include <string.h>
-#include <arpa/inet.h> // inet functions
-#include <unistd.h> //close
-#include <pthread.h>
 
 #include "Servidor.hpp"
-#include "StringUtils.hpp"
 
 
 // https://pubs.opengroup.org/onlinepubs/7908799/xns/syssocket.h.html
@@ -19,16 +8,15 @@
 
 
 Servidor::Servidor(char* port) {
-    _port = atoi(port);
-    _serverFD = socket(AF_INET, SOCK_STREAM, 0);
-
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    serverAddress.sin_port = htons(_port);
-
-    bind(_serverFD, (struct sockaddr*) &serverAddress, sizeof(serverAddress));
-
-    listen(_serverFD, MAX_CLIENTS);
+    _serverSocket = new TCPSocket(NULL, port);
+    if(!_serverSocket->bindServer()) {
+        StringUtils::printDanger("Erro ao realizar o bind do socket do servidor");
+        exit(1);
+    }
+    if(!_serverSocket->startListen(MAX_CLIENTS)) {
+        StringUtils::printDanger("Erro ao comecar o listen do servidor");
+        exit(2);
+    }
 }
 
 void Servidor::start() {
@@ -37,34 +25,15 @@ void Servidor::start() {
 
     StringUtils::printSuccess("Servidor iniciado");
     while(true) {
-        /*clientLen = sizeof(clientAddress);
-        connFD = accept(serverFD, (struct sockaddr*) &client_address, &clientLen);
-        printf("Request received\n");
 
-        while( (n = recv(connFD, buffer, MAX_MSG, 0)) > 0 ) {
-            printf("String received from and resent to client: ");
-            puts(buffer);
-            send(connFD, buffer, n, 0);
-            memset(buffer, 0, sizeof(buffer));
-        }
-
-        if (n < 0 ) {
-            perror("Read error");
-            exit(1);
-        }
-        close(connFD);*/
-
-
-        clientLen = sizeof(clientAddress);
         StringUtils::printInfo("Esperando algum cliente conectar... ");
-        _connFD = accept(_serverFD, (struct sockaddr *) &clientAddress, &clientLen);
+        _connFD = _serverSocket->acceptConnection();
         if(_connFD == -1) {
             StringUtils::printDanger("Houve um problema ao conectar com o cliente");
             continue;
         }
 
         StringUtils::printInfo("Cliente conectado...");
-
 
         pthread_t clientHandlerThread;
         if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
@@ -73,7 +42,7 @@ void Servidor::start() {
         }
     }
     
-    close(_serverFD);
+    _serverSocket->closeSocket();
 }
 
 void* Servidor::handleClientStatic(void* context) {
@@ -88,35 +57,27 @@ void Servidor::handleClient() {
     int n;
     StringUtils::printWarning("Outra Thread criada para lidar com as requisicoes do cliente");
 
-    //close listening socket to stop bugs
-    //close(_serverFD);
-
     memset(buffer, 0, sizeof(buffer));
-    while ( (n = recv(connFD, buffer, MAX_MSG, 0)) > 0)  { // Read the message and save in the buffer
+    while( (n = _serverSocket->receive(connFD, buffer, MAX_MSG)) > 0 ) {
         StringUtils::printInfo("Mensagem recebida e enviada de volta ao cliente: ");
         std::cout << buffer << std::endl;
-        if(send(connFD, buffer, n, 0) == -1)
+        
+        if(_serverSocket->sendMessage(connFD, buffer) == -1)
             StringUtils::printDanger("erro ao enviar a mensagem de volta");
         memset(buffer, 0, sizeof(buffer));
     }
 
-    close(connFD);
+    _serverSocket->closeSocket(connFD);
 
     if (n < 0)
         StringUtils::printDanger("Houve um problema ao ler a mensagem do cliente");
     else if (n == 0)
         StringUtils::printWarning("Cliente se desconectou do servidor");
-    //pthread_exit(0);
 }
 
 
 void Servidor::info() {
-    char ip[INET_ADDRSTRLEN];
-    struct in_addr ipAddr = (&serverAddress)->sin_addr;
-    inet_ntop(AF_INET, &ipAddr, ip, INET_ADDRSTRLEN);
-    std::string ip_str(ip);
-    std::string info = "Servidor rodando em " + ip_str + ":" + to_string(_port);
-    StringUtils::printSuccess(info);
+    _serverSocket->printSocketInfo();
 }
 
 bool Servidor::checkStartupParameters(int argc, char** argv) {

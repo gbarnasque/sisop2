@@ -1,12 +1,4 @@
-#include <stdlib.h>
-#include <sys/socket.h> // bind, socket, listen, accept, connect
-#include <netinet/in.h> //sockaddr_in
-#include <arpa/inet.h> // inet functions
-#include <unistd.h> // close
-#include <string.h>
-
 #include "TCPSocket.hpp"
-#include "StringUtils.hpp"
 
 TCPSocket::TCPSocket() {
     StringUtils::printInfo("Criando socket...1");
@@ -21,6 +13,7 @@ TCPSocket::TCPSocket() {
     _serverAddress.sin_family = AF_INET;
     _serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     _serverAddress.sin_port = htons(_port);
+    
     StringUtils::printSuccess("Socket criada com sucesso");
 }
 
@@ -92,7 +85,7 @@ bool TCPSocket::closeSocket(int clientFD) {
     return (close(clientFD) == 0);
 }
 
-void TCPSocket::getSocketInfo() {
+void TCPSocket::printSocketInfo() {
     char ip[INET_ADDRSTRLEN];
     struct in_addr ipAddr = (&_serverAddress)->sin_addr;
     inet_ntop(AF_INET, &ipAddr, ip, INET_ADDRSTRLEN);

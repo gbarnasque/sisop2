@@ -1,19 +1,22 @@
 #pragma once
-#include <netinet/in.h> //sockaddr_in
+
+#include <iostream>
+#include <string>
+#include <string.h>
+#include <pthread.h>
+
+#include "StringUtils.hpp"
+#include "TCPSocket.hpp"
 
 typedef void * (*THREADFUNCPTR)(void *);
 
 #define MAX_MSG 129
-#define MAX_CLIENTS 1
+#define MAX_CLIENTS 2
 
 class Servidor {
     private: 
-        int _serverFD;
-        struct sockaddr_in serverAddress;
-        struct sockaddr_in clientAddress;
-        //char buffer[MAX_MSG];
-        int _port;
         int _connFD;
+        TCPSocket* _serverSocket;
 
     public:
         Servidor(char* port);

@@ -2,7 +2,7 @@
 
 Cliente::Cliente(char* serverIp, char* serverPort) {
     _socket = new TCPSocket(serverIp, serverPort);
-    _socket->getSocketInfo();
+    _socket->printSocketInfo();
 
     if(_socket->connectSocket()) {
         StringUtils::printDanger("Problema ao conectar ao servidor");
