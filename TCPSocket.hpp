@@ -1,6 +1,13 @@
 #pragma once
 
-#include <netinet/in.h> 
+#include <stdlib.h>
+#include <sys/socket.h> // bind, socket, listen, accept, connect
+#include <netinet/in.h> //sockaddr_in
+#include <arpa/inet.h> // inet functions
+#include <unistd.h> // close
+#include <string.h>
+
+#include "StringUtils.hpp"
 
 #define DEFAULT_PORT 8080
 
@@ -26,5 +33,5 @@ class TCPSocket {
         bool closeSocket(); 
         bool closeSocket(int clientFD);
 
-        void getSocketInfo();
+        void printSocketInfo();
 };

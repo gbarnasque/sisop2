@@ -12,10 +12,6 @@
 
 class Cliente {
     private:
-        //int sockFD;
-        //struct sockaddr_in serverAddr;
-        //std::string sendLine;
-        //std::string receiveLine;
         char sendLine[MAX_MSG], receiveLine[MAX_MSG];
         TCPSocket* _socket;
 
