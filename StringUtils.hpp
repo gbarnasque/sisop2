@@ -30,6 +30,8 @@ class StringUtils {
         static void printWarning(string s);
         static void printDanger(string s);
         static void printSuccess(string s);
+        static void printLine(string s);
+        static void printLine(char* s);
 
         static string removeNewLineAtEnd(string s);
         static char* removeNewLineAtEnd(char* s);

@@ -75,6 +75,14 @@ void StringUtils::printWithPrefix(string s, string prefix, int colorCode) {
     cout << outString << endl;
 }
 
+void StringUtils::printLine(string s) {
+    cout << s << endl;
+}
+
+void StringUtils::printLine(char* s) {
+    cout << s << endl;
+}
+
 string StringUtils::removeNewLineAtEnd(string s) {
     s[s.length() - 1] = '\0';
     return s;

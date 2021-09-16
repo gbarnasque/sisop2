@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <arpa/inet.h> // inet functions
-#include <unistd.h> //fork, close
+#include <unistd.h> //close
 #include <pthread.h>
 
 #include "Servidor.hpp"
@@ -29,7 +29,6 @@ Servidor::Servidor(char* port) {
     bind(_serverFD, (struct sockaddr*) &serverAddress, sizeof(serverAddress));
 
     listen(_serverFD, MAX_CLIENTS);
-
 }
 
 void Servidor::start() {
@@ -78,7 +77,7 @@ void Servidor::start() {
 }
 
 void* Servidor::handleClientStatic(void* context) {
-    ((Servidor *)context)->handleClient();
+    ((Servidor*)context)->handleClient();
     pthread_exit(NULL);
 }
 
@@ -96,7 +95,8 @@ void Servidor::handleClient() {
     while ( (n = recv(connFD, buffer, MAX_MSG, 0)) > 0)  { // Read the message and save in the buffer
         StringUtils::printInfo("Mensagem recebida e enviada de volta ao cliente: ");
         std::cout << buffer << std::endl;
-        send(connFD, buffer, n, 0);
+        if(send(connFD, buffer, n, 0) == -1)
+            StringUtils::printDanger("erro ao enviar a mensagem de volta");
         memset(buffer, 0, sizeof(buffer));
     }
 

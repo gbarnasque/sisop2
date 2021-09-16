@@ -1,36 +1,13 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <iostream>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <arpa/inet.h>
-
 #include "Cliente.hpp"
-#include "StringUtils.hpp"
-
 
 Cliente::Cliente(char* serverIp, char* serverPort) {
-    if((sockFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        StringUtils::printDanger("Problema ao criar o socket!");
-        exit(2);
-    }
+    _socket = new TCPSocket(serverIp, serverPort);
+    _socket->getSocketInfo();
 
-    memset(&serverAddr, 0, sizeof(serverAddr));
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(serverIp);
-    serverAddr.sin_port = htons(atoi(serverPort));
-
-    StringUtils::printInfo("Tentando conectar ao servidor");
-    if(connect(sockFD, (struct sockaddr *) &serverAddr, sizeof(serverAddr)) < 0) {
+    if(_socket->connectSocket()) {
         StringUtils::printDanger("Problema ao conectar ao servidor");
         exit(3);
     }
-
-    //sendLine.resize(MAX_MSG);
-    //receiveLine.resize(MAX_MSG);
-    //std::cout << sendLine.length() << std::endl;
 
     StringUtils::printSuccess("Conectado!");
 }
@@ -38,7 +15,8 @@ Cliente::Cliente(char* serverIp, char* serverPort) {
 void Cliente::handleExit(){
     StringUtils::printWarning("Saindo do aplicativo cliente");
     memset(sendLine, 0, sizeof(sendLine));
-    send(sockFD, sendLine, strlen(sendLine), 0);
+    _socket->sendMessage(sendLine);
+    _socket->closeSocket();
     exit(0);
 }
 
@@ -47,15 +25,15 @@ void Cliente::interact() {
     while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
         StringUtils::removeNewLineAtEnd(sendLine);
 
-        send(sockFD, sendLine, strlen(sendLine), 0);
+        _socket->sendMessage(sendLine);
 
         memset(receiveLine, 0, sizeof(receiveLine));
 
-        if(recv(sockFD, receiveLine, MAX_MSG, 0) == 0) {
-            //error: server terminated prematurely
+        if(_socket->receive(receiveLine, MAX_MSG) == -1){
             StringUtils::printDanger("O servidor encerrou a conexão");
             exit(4);
         }
+        
         StringUtils::printInfo("Mensagem recebida do servidor:");
         puts(receiveLine);
 
@@ -87,6 +65,7 @@ void Cliente::help() {
 
 bool Cliente::checkStartupParameters(int argc, char** argv) {
     int port;
+
     if(argc < 4) {
         StringUtils::printDanger("Quantidade de parametros passados eh insuficiente");
         return false;
@@ -104,7 +83,7 @@ bool Cliente::checkStartupParameters(int argc, char** argv) {
         StringUtils::printDanger("Seu perfil precisa conter entre 4 e 20 caracteres");
         return false;
     }
-
+     
     std::string ip(argv[2]);
     std::size_t found;
     std::string s_ip;
@@ -140,6 +119,5 @@ bool Cliente::checkStartupParameters(int argc, char** argv) {
         return false;
     }
 
-    
     return true;
 }
