@@ -7,6 +7,8 @@ int main(int argc, char** argv) {
         exit(0);
     }
 
+    StringUtils::testColors();
+
     Servidor* s = new Servidor(argv[1]);
     s->info();
     s->start();
