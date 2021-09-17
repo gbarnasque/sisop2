@@ -1,5 +1,3 @@
-
-
 #include "Servidor.hpp"
 
 
@@ -17,18 +15,18 @@ Servidor::Servidor(char* port) {
         StringUtils::printDanger("Erro ao comecar o listen do servidor");
         exit(2);
     }
+    sem_init(&semaphorClientFD, 0, 1);
 }
 
 void Servidor::start() {
-    socklen_t clientLen;
-    int connFD, n;
-
     StringUtils::printSuccess("Servidor iniciado");
     while(true) {
 
         StringUtils::printInfo("Esperando algum cliente conectar... ");
-        _connFD = _serverSocket->acceptConnection();
-        if(_connFD == -1) {
+
+        sem_wait(&semaphorClientFD); // Espera a thread que vai lidar com o cliente pegar o clientFD
+        _currentClientFD = _serverSocket->acceptConnection();
+        if(_currentClientFD == -1) {
             StringUtils::printDanger("Houve um problema ao conectar com o cliente");
             continue;
         }
@@ -39,6 +37,7 @@ void Servidor::start() {
         if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
         //if (pthread_create(&clientHandlerThread, NULL, (THREADFUNCPTR) &Servidor::handleClient, this) == 0) { // Pointer to func
             StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
+            sem_post(&semaphorClientFD);
         }
     }
     
@@ -51,23 +50,26 @@ void* Servidor::handleClientStatic(void* context) {
 }
 
 void Servidor::handleClient() {
-    int connFD = _connFD;
-    StringUtils::printInfo("Entered thread");
-    char buffer[MAX_MSG];
+     //StringUtils::printInfo("Entered thread");
     int n;
+    int clientFD = _currentClientFD;
+    char buffer[MAX_MSG];
+
+    sem_post(&semaphorClientFD); // Libera a próxima conexão depois de pegar o clientFD
+
     StringUtils::printWarning("Outra Thread criada para lidar com as requisicoes do cliente");
 
     memset(buffer, 0, sizeof(buffer));
-    while( (n = _serverSocket->receive(connFD, buffer, MAX_MSG)) > 0 ) {
+    while( (n = _serverSocket->receive(clientFD, buffer, MAX_MSG)) > 0 ) {
         StringUtils::printInfo("Mensagem recebida e enviada de volta ao cliente: ");
         std::cout << buffer << std::endl;
         
-        if(_serverSocket->sendMessage(connFD, buffer) == -1)
+        if(_serverSocket->sendMessage(clientFD, buffer) == -1)
             StringUtils::printDanger("erro ao enviar a mensagem de volta");
         memset(buffer, 0, sizeof(buffer));
     }
 
-    _serverSocket->closeSocket(connFD);
+    _serverSocket->closeSocket(clientFD);
 
     if (n < 0)
         StringUtils::printDanger("Houve um problema ao ler a mensagem do cliente");

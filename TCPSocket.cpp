@@ -13,7 +13,7 @@ TCPSocket::TCPSocket() {
     _serverAddress.sin_family = AF_INET;
     _serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     _serverAddress.sin_port = htons(_port);
-    
+
     StringUtils::printSuccess("Socket criada com sucesso");
 }
 
@@ -57,7 +57,7 @@ int TCPSocket::acceptConnection() {
 // If the connection or binding succeeds, zero is returned. On error, -1 is returned
 bool TCPSocket::connectSocket() {
     StringUtils::printInfo("Tentando conectar ao servidor");
-    return (connect(_serverFD, (struct sockaddr *) &_serverAddress, sizeof(_serverAddress)));
+    return (connect(_serverFD, (struct sockaddr *) &_serverAddress, sizeof(_serverAddress)) == 0);
 }
 
 // https://man7.org/linux/man-pages/man2/send.2.html
