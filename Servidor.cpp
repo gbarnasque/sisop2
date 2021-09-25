@@ -6,6 +6,13 @@
 
 
 Servidor::Servidor(char* port) {
+    time_t timestamp;
+    time(&timestamp);
+    std::cout << "Timestamp: " << timestamp << std::endl;
+
+    Pacote* p = new Pacote(Tipo::COMMAND, timestamp, "teste");
+    StringUtils::printBold(p->serialize());
+
     _serverSocket = new TCPSocket(NULL, port);
     if(!_serverSocket->bindServer()) {
         StringUtils::printDanger("Erro ao realizar o bind do socket do servidor");
@@ -61,6 +68,8 @@ void Servidor::handleClient() {
 
     memset(buffer, 0, sizeof(buffer));
     while( (n = _serverSocket->receive(clientFD, buffer, MAX_MSG)) > 0 ) {
+        
+        //if(s_buffer.)
         StringUtils::printInfo("Mensagem recebida e enviada de volta ao cliente: ");
         std::cout << buffer << std::endl;
         

@@ -1,5 +1,5 @@
 #pragma once
-
+/*
 #define RED 0
 #define GREEN 1
 #define YELLOW 2
@@ -15,10 +15,30 @@
 #define BRIGHT_MAGENTA 12
 #define BRIGHT_CYAN 13
 #define BRIGHT_GRAY 14
-
+*/
 #include <string>
 
 using namespace std;
+
+enum Color {
+    RED,
+    GREEN,
+    YELLOW,
+    CYAN,
+    BLUE,
+    MAGENTA,
+    WHITE,
+    GRAY,
+    BRIGHT_RED,
+    BRIGHT_GREEN,
+    BRIGHT_YELLOW,
+    BRIGHT_BLUE,
+    BRIGHT_MAGENTA,
+    BRIGHT_CYAN,
+    BRIGHT_GRAY,
+    
+    NONE
+};
 
 class StringUtils {
     private:
@@ -41,12 +61,12 @@ class StringUtils {
         static string _bright_cyan;
         static string _bright_gray;
 
-        static string getColorString(int colorCode);
+        static string getColorString(Color colorCode);
         
     public:
-        static void print(string s, int colorCode);
+        static void print(string s, Color colorCode, bool bold);
         static void printBold(string s);
-        static void printWithPrefix(string s, string prefix, int colorCode);
+        static void printWithPrefix(string s, string prefix, Color colorCode);
 
         static void printInfo(string s);
         static void printWarning(string s);

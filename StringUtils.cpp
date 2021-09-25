@@ -24,7 +24,7 @@ string StringUtils::_bright_magenta = "\033[95m";
 string StringUtils::_bright_cyan = "\033[96m";
 string StringUtils::_white = "\033[97m";
 
-string StringUtils::getColorString(int colorCode) {
+string StringUtils::getColorString(Color colorCode) {
     std::string color;
     switch (colorCode)
     {
@@ -77,8 +77,8 @@ string StringUtils::getColorString(int colorCode) {
     return color;
 }
 
-void StringUtils::print(string s, int colorCode) {
-    string outString = _bold;
+void StringUtils::print(string s, Color colorCode, bool bold) {
+    string outString = (bold) ? _bold : "";
 
     outString += getColorString(colorCode);
 
@@ -106,7 +106,7 @@ void StringUtils::printSuccess(string s) {
     printWithPrefix(s, "[+]", GREEN);
 }
 
-void StringUtils::printWithPrefix(string s, string prefix, int colorCode) {
+void StringUtils::printWithPrefix(string s, string prefix, Color colorCode) {
     string outString = StringUtils::_bold;
     outString += getColorString(colorCode);
     outString += prefix;
@@ -134,7 +134,7 @@ char* StringUtils::removeNewLineAtEnd(char* s) {
 }
 
 void StringUtils::testColors() {
-    for(int i=RED; i<BRIGHT_GRAY; i++) {
-        printWithPrefix("teste", "[!]", i);
+    for(int i=Color::RED; i != Color::NONE; i++) {
+        printWithPrefix("teste", "[!]", static_cast<Color>(i));
     }
 }

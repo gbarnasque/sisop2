@@ -1,17 +1,20 @@
 #include "Cliente.hpp"
 
-Cliente::Cliente(char* serverIp, char* serverPort) {
+Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
     _socket = new TCPSocket(serverIp, serverPort);
     
     if(!_socket->connectSocket()) {
         StringUtils::printDanger("Problema ao conectar ao servidor");
         exit(3);
     }
+    char* message;
+    strcpy(message, "START ");
+    _socket->sendMessage(user);
 
     StringUtils::printSuccess("Conectado!");
 }
 
-void Cliente::handleExit(){
+void Cliente::handleExit() {
     StringUtils::printWarning("Saindo do aplicativo cliente");
     memset(sendLine, 0, sizeof(sendLine));
     _socket->sendMessage(sendLine);

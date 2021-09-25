@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     strcpy(port, argv[3]);
 */
     std::cout << argv[2] << ":" << argv[3] << std::endl;
-    Cliente* c = new Cliente(argv[2], argv[3]);
+    Cliente* c = new Cliente(argv[2], argv[3], argv[1]);
     Signalhandler = c;
     
     c->interact();
