@@ -16,7 +16,7 @@ class Cliente {
         TCPSocket* _socket;
 
     public:
-        Cliente(char* serverIp, char* serverPort);        
+        Cliente(char* serverIp, char* serverPort, char* user);        
         void handleExit(); 
 
         void interact();

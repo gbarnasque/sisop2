@@ -1,6 +1,6 @@
 CPP = g++
 FLAGS = -Wall -g -Werror -pthread
-UTILS = StringUtils.o TCPSocket.o
+UTILS = StringUtils.o TCPSocket.o Pacote.o
 
 all: app_servidor app_cliente
 
@@ -34,3 +34,5 @@ StringUtils.o: StringUtils.cpp StringUtils.hpp
 TCPSocket.o: TCPSocket.cpp TCPSocket.hpp
 	${CPP} -c TCPSocket.cpp
 
+Pacote.o: Pacote.cpp Pacote.hpp
+	${CPP} -c Pacote.cpp
