@@ -15,7 +15,7 @@
 
 typedef void * (*THREADFUNCPTR)(void *);
 
-#define MAX_MSG 129
+#define MAX_MSG 1024
 #define MAX_CLIENTS 5
 
 struct notificacao {

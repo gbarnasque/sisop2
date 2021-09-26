@@ -9,6 +9,15 @@ enum Tipo {
     COMMAND
 };
 
+enum Comando {
+    CONNECT,
+    DISCONNECT,
+    SEND,
+    FOLLOW,
+    NOTIFICATION,
+    NO = -1
+};
+
 /*const char* TipoToString(Tipo t) {
     switch (t)
     {
@@ -22,6 +31,9 @@ class Pacote {
     private:
         Tipo _tipo;
         time_t _timestamp;
+        
+        Comando _comando;
+        std::string _usuario;
         std::string _payload;
         int _tamanhoPayload;
 
@@ -37,11 +49,24 @@ class Pacote {
         Pacote();
         ~Pacote();
         Pacote(Tipo tipo, time_t timestamp, std::string payload);
+        Pacote(Tipo tipo, time_t timestamp, Comando comando, std::string usuario, std::string payload = "");
+        Pacote(char* pacoteSerializado);
+        Pacote(std::string pacoteSerializado);
 
         void setTipo(Tipo tipo);
+        Tipo getTipo();
         void setTimestamp(time_t timestamp);
+        time_t getTimestamp();
+        void setComando(Comando comando);
+        Comando getComando();
+        void setUsuario(std::string usuario);
+        std::string getUsuario();
         void setPayload(std::string payload);
+        std::string getPayload();
+        int getTamanhoPayload();
 
-        char* serialize();
+        char* serialize(char* message);
+        std::string serialize();
         void deserialize(char* pacoteSerializado);
+        void deserialize(std::string pacoteSerializadoString);
 };

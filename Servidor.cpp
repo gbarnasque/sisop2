@@ -6,13 +6,17 @@
 
 
 Servidor::Servidor(char* port) {
-    time_t timestamp;
-    time(&timestamp);
-    std::cout << "Timestamp: " << timestamp << std::endl;
+    //time_t timestamp;
+    //time(&timestamp);
 
-    Pacote* p = new Pacote(Tipo::COMMAND, timestamp, "teste");
+/*
+    Pacote* p = new Pacote(Tipo::DATA, timestamp, "teste");
+    p->setUsuario("@aaaa");
     StringUtils::printBold(p->serialize());
-
+    Pacote* p2 = new Pacote();
+    p2->deserialize(p->serialize());
+    StringUtils::printBold(p2->serialize());
+*/
     _serverSocket = new TCPSocket(NULL, port);
     if(!_serverSocket->bindServer()) {
         StringUtils::printDanger("Erro ao realizar o bind do socket do servidor");
@@ -68,14 +72,19 @@ void Servidor::handleClient() {
 
     memset(buffer, 0, sizeof(buffer));
     while( (n = _serverSocket->receive(clientFD, buffer, MAX_MSG)) > 0 ) {
-        
+        Pacote* p = new Pacote(buffer);
+        if(p->getComando() == Comando::CONNECT) {
+            StringUtils::printBold(p->getUsuario());
+            continue;
+        }
         //if(s_buffer.)
         StringUtils::printInfo("Mensagem recebida e enviada de volta ao cliente: ");
-        std::cout << buffer << std::endl;
-        
-        if(_serverSocket->sendMessage(clientFD, buffer) == -1)
+        StringUtils::printBold(p->serialize());
+        //strcpy(buffer,StringUtils::removeNewLineAtEnd(buffer));
+        if(_serverSocket->sendMessage(clientFD, p->serialize().c_str()) == -1)
             StringUtils::printDanger("erro ao enviar a mensagem de volta");
         memset(buffer, 0, sizeof(buffer));
+        StringUtils::printInfo("Esperando mensagem do cliente...");
     }
 
     _serverSocket->closeSocket(clientFD);
