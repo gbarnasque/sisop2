@@ -27,7 +27,9 @@ class TCPSocket {
         int acceptConnection();
         bool connectSocket();
         int sendMessage(char* message);
+        int sendMessage(const char* message); 
         int sendMessage(int clientFD, char* message);
+        int sendMessage(int clientFD, const char* message);
         int receive(char* buffer, int maxMessageSize);
         int receive(int clientFD, char* buffer, int maxMessageSize);
         bool closeSocket(); 

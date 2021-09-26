@@ -7,8 +7,9 @@
 
 #include "StringUtils.hpp"
 #include "TCPSocket.hpp"
+#include "Pacote.hpp"
 
-#define MAX_MSG 129
+#define MAX_MSG 1024
 
 class Cliente {
     private:

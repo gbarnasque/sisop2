@@ -7,9 +7,16 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
         StringUtils::printDanger("Problema ao conectar ao servidor");
         exit(3);
     }
-    char* message;
-    strcpy(message, "START ");
-    _socket->sendMessage(user);
+    std::string usuario(user);
+    Pacote* p = new Pacote(Tipo::COMMAND, time(NULL), Comando::CONNECT, usuario);
+    //char* message;
+    //message = (char*) malloc(sizeof(char)*MAX_MSG + 1);
+    //p->serialize(message); 
+    
+    _socket->sendMessage(p->serialize().c_str());
+    //StringUtils::printBold("aaaa");
+    _socket->printSocketInfo();
+    //free(message);
 
     StringUtils::printSuccess("Conectado!");
 }
@@ -26,18 +33,21 @@ void Cliente::interact() {
     StringUtils::printInfo("Esperando pelo input do usuario...");
     while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
         StringUtils::removeNewLineAtEnd(sendLine);
-
-        _socket->sendMessage(sendLine);
-
+       
+        std::string sendLineString(sendLine);
+        Pacote* send = new Pacote(Tipo::DATA, time(NULL), sendLineString);
+        _socket->sendMessage(send->serialize().c_str());
+        
         memset(receiveLine, 0, sizeof(receiveLine));
 
         if(_socket->receive(receiveLine, MAX_MSG) == -1){
             StringUtils::printDanger("O servidor encerrou a conexão");
             exit(4);
         }
-        
+        //std::string receiveLineString(receiveLine);
+        Pacote* p = new Pacote(receiveLine);
         StringUtils::printInfo("Mensagem recebida do servidor:");
-        puts(receiveLine);
+        StringUtils::printBold(p->serialize());
 
         memset(sendLine, 0, sizeof(sendLine));
         StringUtils::printInfo("Esperando pelo input do usuario...");
