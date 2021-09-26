@@ -15,6 +15,7 @@ class Cliente {
     private:
         char sendLine[MAX_MSG], receiveLine[MAX_MSG];
         TCPSocket* _socket;
+        std::string _usuario;
 
     public:
         Cliente(char* serverIp, char* serverPort, char* user);        

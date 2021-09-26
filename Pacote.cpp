@@ -10,6 +10,7 @@ Pacote::Pacote() {
     _usuario = "";
     _payload = "";
     _tamanhoPayload = 0;
+    _status = Status::OK;
 }
 
 Pacote::Pacote(Tipo tipo, time_t timestamp, std::string payload) {
@@ -19,6 +20,7 @@ Pacote::Pacote(Tipo tipo, time_t timestamp, std::string payload) {
     _usuario = "";
     _payload = payload;
     _tamanhoPayload = _payload.length();
+    _status = Status::OK;
 }
 
 Pacote::Pacote(Tipo tipo, time_t timestamp, Comando comando, std::string usuario, std::string payload) {
@@ -28,15 +30,25 @@ Pacote::Pacote(Tipo tipo, time_t timestamp, Comando comando, std::string usuario
     _usuario = usuario;
     _payload = payload;
     _tamanhoPayload = _payload.length();
+    _status = Status::OK;
+}
+
+Pacote::Pacote(Tipo tipo, Status status, std::string payload) {
+    _tipo = tipo;
+    _status = status;
+    _payload = payload;
+    _tamanhoPayload = _payload.length();
+
 }
 
 Pacote::Pacote(char* pacoteSerializado) {
     //StringUtils::printInfo("Tentando deserializar");
-    deserialize(pacoteSerializado);
+    deserialize<char*>(pacoteSerializado);
 }
+
 Pacote::Pacote(std::string pacoteSerializado) {
     //StringUtils::printInfo("Tentando deserializar");
-    deserialize(pacoteSerializado);
+    deserialize<std::string>(pacoteSerializado);
 }
 
 void Pacote::setTipo(Tipo tipo) {
@@ -51,6 +63,13 @@ void Pacote::setTimestamp(time_t timestamp) {
 }
 time_t Pacote::getTimestamp() {
     return _timestamp;
+}
+
+void Pacote::setStatus(Status status) {
+    _status = status;
+}
+Status Pacote::getStatus() {
+    return _status;
 }
 
 void Pacote::setComando(Comando comando) {
@@ -143,14 +162,14 @@ std::string Pacote::generateString(string identificador, string s, bool end) {
     return newString;
 } 
 
-char* Pacote::serialize(char* message) {
+char* Pacote::serializeAsCharPointer() {
     //StringUtils::printInfo("Serializando Pacote");
     std::string pacoteSerializadoString;
     char* pacoteSerializado;
     
-    
     pacoteSerializadoString.append("{");
     pacoteSerializadoString.append(generateInt<Tipo>("tipo", _tipo));
+    pacoteSerializadoString.append(generateInt<Status>("status", _status));
     pacoteSerializadoString.append(generateInt<time_t>("timestamp", _timestamp));
     pacoteSerializadoString.append(generateInt<Comando>("comando", _comando));
     pacoteSerializadoString.append(generateString("usuario", _usuario));
@@ -159,18 +178,18 @@ char* Pacote::serialize(char* message) {
 
     //StringUtils::printLine(pacoteSerializadoString);
     pacoteSerializado = (char*)malloc(sizeof(char)*pacoteSerializadoString.length()+1);
-    //message = (char*)malloc(sizeof(char)*pacoteSerializadoString.length()+1);
+    
     strcpy(pacoteSerializado, pacoteSerializadoString.c_str());
-    strcpy(message, pacoteSerializadoString.c_str());
 
     return pacoteSerializado;
 }
 
-string Pacote::serialize() {
+string Pacote::serializeAsString() {
     std::string pacoteSerializadoString;
      
     pacoteSerializadoString.append("{");
     pacoteSerializadoString.append(generateInt<Tipo>("tipo", _tipo));
+    pacoteSerializadoString.append(generateInt<Status>("status", _status));
     pacoteSerializadoString.append(generateInt<time_t>("timestamp", _timestamp));
     pacoteSerializadoString.append(generateInt<Comando>("comando", _comando));
     pacoteSerializadoString.append(generateString("usuario", _usuario));
@@ -179,11 +198,12 @@ string Pacote::serialize() {
 
     return pacoteSerializadoString;
 }
-void Pacote::deserialize(char* pacoteSerializado) {
+template <typename T>
+void Pacote::deserialize(T pacoteSerializado) {
     std::string nome;
     std::string valor;
     std::string pacoteSerializadoString(pacoteSerializado);
-    StringUtils::printLine(pacoteSerializadoString);
+    //StringUtils::printLine(pacoteSerializadoString);
    
     if(pacoteSerializadoString.length() != 2) {
         while(pacoteSerializadoString.length() != 1 && pacoteSerializadoString.length() != 0) {
@@ -219,6 +239,9 @@ void Pacote::deserialize(char* pacoteSerializado) {
             else if(nome == "comando") {
                 setComando(static_cast<Comando>(stoi(valor)));
             }
+            else if(nome == "status") {
+                setStatus(static_cast<Status>(stoi(valor)));
+            }
             // */
             //StringUtils::printLine("Valor: ");
             //StringUtils::printLine(valor);
@@ -228,6 +251,7 @@ void Pacote::deserialize(char* pacoteSerializado) {
         }
     }
 }
+/*
 void Pacote::deserialize(std::string pacoteSerializadoString) {
     std::string nome;
     std::string valor; 
@@ -239,8 +263,8 @@ void Pacote::deserialize(std::string pacoteSerializadoString) {
             std::size_t aspasPos = pacoteSerializadoString.find_first_of("\"", aspasAntes+1);
             nome = pacoteSerializadoString.substr(aspasAntes + 1, aspasPos - aspasAntes - 1);
 
-            StringUtils::printLine("Nome: ");
-            StringUtils::printLine(nome);
+            //StringUtils::printLine("Nome: ");
+            //StringUtils::printLine(nome);
             pacoteSerializadoString = pacoteSerializadoString.substr(aspasPos+2);
             
             std::size_t terminador = pacoteSerializadoString.find_first_of(",}");
@@ -266,12 +290,13 @@ void Pacote::deserialize(std::string pacoteSerializadoString) {
             else if(nome == "comando") {
                 setComando(static_cast<Comando>(stoi(valor)));
             }
-            // */
-            StringUtils::printLine("Valor: ");
-            StringUtils::printLine(valor);
+            // 
+            //StringUtils::printLine("Valor: ");
+            //StringUtils::printLine(valor);
 
             pacoteSerializadoString = pacoteSerializadoString.substr(terminador);
-            StringUtils::printLine(pacoteSerializadoString);
+            //StringUtils::printLine(pacoteSerializadoString);
         }
     }
 }
+*/

@@ -8,23 +8,34 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
         exit(3);
     }
     std::string usuario(user);
-    Pacote* p = new Pacote(Tipo::COMMAND, time(NULL), Comando::CONNECT, usuario);
-    //char* message;
-    //message = (char*) malloc(sizeof(char)*MAX_MSG + 1);
-    //p->serialize(message); 
+    _usuario = usuario;
+    Pacote* enviado = new Pacote(Tipo::COMMAND, time(NULL), Comando::CONNECT, usuario);
     
-    _socket->sendMessage(p->serialize().c_str());
-    //StringUtils::printBold("aaaa");
-    _socket->printSocketInfo();
-    //free(message);
+    _socket->sendMessage(enviado->serializeAsString().c_str());
 
-    StringUtils::printSuccess("Conectado!");
+    memset(receiveLine, 0, sizeof(receiveLine));
+    _socket->receive(receiveLine, MAX_MSG);
+
+    Pacote* recebido = new Pacote(receiveLine);
+    if(recebido->getStatus() == Status::OK) {
+        StringUtils::printSuccess(recebido->getPayload());
+    }
+    else {
+        StringUtils::printDanger(recebido->getPayload());
+        _socket->closeSocket();
+        exit(4);
+    }
+    
 }
 
 void Cliente::handleExit() {
     StringUtils::printWarning("Saindo do aplicativo cliente");
     memset(sendLine, 0, sizeof(sendLine));
-    _socket->sendMessage(sendLine);
+    Pacote* p = new Pacote();
+    p->setComando(Comando::DISCONNECT);
+    p->setStatus(Status::OK);
+    p->setUsuario(_usuario);
+    _socket->sendMessage(p->serializeAsString().c_str());
     _socket->closeSocket();
     exit(0);
 }
@@ -36,7 +47,7 @@ void Cliente::interact() {
        
         std::string sendLineString(sendLine);
         Pacote* send = new Pacote(Tipo::DATA, time(NULL), sendLineString);
-        _socket->sendMessage(send->serialize().c_str());
+        _socket->sendMessage(send->serializeAsString().c_str());
         
         memset(receiveLine, 0, sizeof(receiveLine));
 
@@ -47,7 +58,7 @@ void Cliente::interact() {
         //std::string receiveLineString(receiveLine);
         Pacote* p = new Pacote(receiveLine);
         StringUtils::printInfo("Mensagem recebida do servidor:");
-        StringUtils::printBold(p->serialize());
+        StringUtils::printBold(p->serializeAsString());
 
         memset(sendLine, 0, sizeof(sendLine));
         StringUtils::printInfo("Esperando pelo input do usuario...");
