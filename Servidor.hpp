@@ -34,8 +34,9 @@ class Servidor {
         void info();
         void handleClient();
 
-        void handleConnect(string usuario, int socketDescriptor);
-        void handleDisconnect(string usuario, int socketDescriptor);
+        void handleConnect(std::string usuario, int socketDescriptor);
+        void handleDisconnect(std::string usuario, int socketDescriptor);
+        void handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
 
 
         

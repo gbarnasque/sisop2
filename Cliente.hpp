@@ -22,6 +22,10 @@ class Cliente {
         void handleExit(); 
 
         void interact();
+        
+        Comando getComandoFromLine(std::string line);
+        std::string removeComandoFromLine(std::string line);
+        bool lineEstaOK(std::string line, Comando c);
 
         static void help();
         static bool checkStartupParameters(int argc, char** argv);

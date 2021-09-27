@@ -69,7 +69,15 @@ void Servidor::handleClient() {
                 break;
             case Comando::DISCONNECT:
                 handleDisconnect(recebido->getUsuario(), clientFD);
-
+                break;
+            case Comando::SEND:
+                StringUtils::printBold(recebido->serializeAsString());
+                handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
+                break;
+            case Comando::FOLLOW:
+                StringUtils::printBold(recebido->serializeAsString());
+                //handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
+                break;
             default:
                 break;
         }
@@ -93,12 +101,14 @@ void Servidor::handleClient() {
         StringUtils::printWarning("Cliente se desconectou do servidor");
 }
 
+// Talvez botar semaforo aqui
 void Servidor::handleConnect(string usuario, int socketDescriptor) {
     bool conectado = false;
     int index;
     Pacote* send;
-    StringUtils::printInfo("Lidando com a conexao do usuario: " + usuario + " no socket " + to_string(socketDescriptor));
+    StringUtils::printInfo("Lidando com a conexao do usuario " + usuario + " no socket " + to_string(socketDescriptor));
     //StringUtils::printBold(to_string(perfis.size()));
+    // Procura se o usuário está logado já
     for(int i=0; i<perfis.size(); i++) {
         if(perfis[i]._usuario == usuario) {
             conectado = true;
@@ -109,12 +119,13 @@ void Servidor::handleConnect(string usuario, int socketDescriptor) {
     //StringUtils::printBold(to_string(conectado));
     if(conectado) {
         //StringUtils::printWithPrefix(to_string(perfis[index]._socketDescriptors.size()), "Quantidade de conexoes: ", Color::NONE);
+        // Caso esteja com duas conexẽos da ruim
         if(perfis[index]._socketDescriptors.size() == 2) {
             string message = "Numero maximo de conexoes para o usuario excedido";
             send = new Pacote(Tipo::DATA, Status::ERROR, message);
             StringUtils::printWarning("Desconectando " + usuario + " no socket " +  to_string(socketDescriptor) + ". Motivo: " + message);
         }
-        else {
+        else { // Caso não, adiciona
             perfis[index]._socketDescriptors.push_back(socketDescriptor);
             send = new Pacote(Tipo::DATA, Status::OK, "Usuario conectado com sucesso");
         }
@@ -129,6 +140,7 @@ void Servidor::handleConnect(string usuario, int socketDescriptor) {
 
     _serverSocket->sendMessage(socketDescriptor, send->serializeAsString().c_str());
     
+    // fecha socket e termina a thread caso usuario tenha sido "deslogado"
     if(send->getStatus() == Status::ERROR) {
         _serverSocket->closeSocket(socketDescriptor);
         pthread_exit(NULL);
@@ -136,7 +148,36 @@ void Servidor::handleConnect(string usuario, int socketDescriptor) {
 }
 
 void Servidor::handleDisconnect(string usuario, int socketDescriptor) {
+    for(vector<Perfil>::iterator perfil = perfis.begin(); perfil != perfis.end(); perfil++) {
+        if(perfil->_usuario == usuario) {
+            if(perfil->_socketDescriptors.size() == 1) {
+                //StringUtils::printInfo("Desconectando cliente com somente um socket");
+                perfis.erase(perfil);
+            } 
+            else {
+                for(vector<int>::iterator socket = perfil->_socketDescriptors.begin(); socket != perfil->_socketDescriptors.end(); socket++) {
+                    if(*socket == socketDescriptor) {
+                        //StringUtils::printInfo("Desconectando cliente com MAIS de um socket");
+                        perfil->_socketDescriptors.erase(socket);
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+    }
+    StringUtils::printWarning("Desconectando " + usuario + " no socket " +  to_string(socketDescriptor) + ". Motivo: Usuario deslogado");
+    _serverSocket->closeSocket(socketDescriptor);
+    pthread_exit(NULL);
+}
 
+void Servidor::handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload) {
+    Notificacao notificacao;
+    notificacao._timestamp = timestamp;
+    notificacao._mensagem = payload;
+    notificacao._tamanho = tamanhoPayload;
+
+    notificacao.printNotificacao();    
 }
 
 

@@ -17,4 +17,6 @@ class Notificacao {
 
         Notificacao();
         ~Notificacao();
+
+        void printNotificacao();
 };

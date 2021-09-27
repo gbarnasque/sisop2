@@ -43,14 +43,38 @@ void Cliente::handleExit() {
 void Cliente::interact() {
     StringUtils::printInfo("Esperando pelo input do usuario...");
     while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
-        StringUtils::removeNewLineAtEnd(sendLine);
-       
-        std::string sendLineString(sendLine);
-        Pacote* send = new Pacote(Tipo::DATA, time(NULL), sendLineString);
-        _socket->sendMessage(send->serializeAsString().c_str());
-        
-        memset(receiveLine, 0, sizeof(receiveLine));
+        Pacote* send;
 
+        StringUtils::removeNewLineAtEnd(sendLine);
+        std::string sendLineString(sendLine);
+        Comando comando = getComandoFromLine(sendLineString);
+        sendLineString = removeComandoFromLine(sendLineString);
+        switch (comando)
+        {
+            case Comando::FOLLOW:
+                if(!lineEstaOK(sendLineString, comando)) {
+                    StringUtils::printDanger("O perfil a seguir deve conter entre 4 e 20 caracteres e comecar com @");
+                    break;
+                }
+
+            case Comando::SEND:
+                if(!lineEstaOK(sendLineString, comando)) {
+                    StringUtils::printDanger("Sua mensagem possui mais do que os 128 caracteres permitidos");
+                    break;
+                }
+                
+                send = new Pacote(Tipo::COMMAND, time(NULL), comando, _usuario, sendLineString);
+                _socket->sendMessage(send->serializeAsString().c_str());
+                
+                break;
+            case Comando::NO:
+            default:
+                StringUtils::printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"");
+                break;
+        }
+        /*
+        memset(receiveLine, 0, sizeof(receiveLine));
+        
         if(_socket->receive(receiveLine, MAX_MSG) == -1){
             StringUtils::printDanger("O servidor encerrou a conexão");
             exit(4);
@@ -59,18 +83,54 @@ void Cliente::interact() {
         Pacote* p = new Pacote(receiveLine);
         StringUtils::printInfo("Mensagem recebida do servidor:");
         StringUtils::printBold(p->serializeAsString());
-
+        // */
         memset(sendLine, 0, sizeof(sendLine));
         StringUtils::printInfo("Esperando pelo input do usuario...");
     }
     handleExit();
 }
 
+
+Comando Cliente::getComandoFromLine(std::string line) {
+    size_t espaco = line.find_first_of(" ");
+    if(espaco == std::string::npos) {
+        return Comando::NO;
+    }
+    std::string comando = line.substr(0, espaco);
+    if(comando == "SEND") {
+        return Comando::SEND;
+    }
+    else if(comando == "FOLLOW") {
+        return Comando::FOLLOW;
+    }
+    else {
+        return Comando::NO;
+    }
+}
+
+std::string Cliente::removeComandoFromLine(std::string line) {
+    size_t espaco = line.find_first_of(" ");
+    std::string newLine = line.substr(espaco+1);
+    return newLine;
+}
+
+bool Cliente::lineEstaOK(std::string line, Comando c) {
+    switch (c)
+    {
+        case Comando::FOLLOW:
+            return (line.length() > 4 && line.length() < 20 && line[0] == '@');
+        case Comando::SEND:
+            return (line.length() <= 128);
+        default:
+            return false;
+    }
+}
+
 void Cliente::help() {
     std::cout << std::endl;
     StringUtils::printBold("USAGE");
     puts("./app_cliente [-h | --help] <PERFIL> <IP_SERVIDOR> <PORTA>");
-    puts("Onde <PERFIL> deve começar com @ e conter entre 3 e 20 caracteres");
+    puts("Onde <PERFIL> deve começar com @ e conter entre 4 e 20 caracteres");
     puts("<IP_SERVIDOR> deve ser no format x.x.x.x, onde x esta no intervalo [0, 255]");
     puts("<PORTA> esta no intervalo [1,65535]");
     std::cout << std::endl;

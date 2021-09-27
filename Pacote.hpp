@@ -58,6 +58,7 @@ class Pacote {
         Pacote(char* pacoteSerializado);
         Pacote(std::string pacoteSerializado);
         Pacote(Tipo tipo, Status status, std::string payload);
+        Pacote(Status status, std::string payload);
 
         void setTipo(Tipo tipo);
         Tipo getTipo();
