@@ -173,6 +173,17 @@ void Servidor::handleSend(std::string usuario, time_t timestamp, std::string pay
     notificacao._tamanho = tamanhoPayload;
 
     notificacao.printNotificacao();    
+
+    StringUtils::printInfo("Recebi mensagem, enviando notificacoes aos seguidores");
+    Perfil perfilDoUsuario = getPerfilByUsername(usuario);
+    if(perfilDoUsuario._usuario != "ERRO"){
+        Pacote* pctNotificacao = new Pacote(Tipo::DATA, Status::OK, usuario+": "+payload);
+        for(string seguidor : perfilDoUsuario._seguidores){
+            Perfil perfilSeguidor = getPerfilByUsername(seguidor);
+            _serverSocket->sendMessage(perfilSeguidor._socketDescriptors[0], pctNotificacao->serializeAsString().c_str());
+        }
+    }
+
 }
 
 void Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor) {
@@ -256,4 +267,15 @@ void Servidor::printPerfis() {
     for(Perfil p : _perfis) {
         p.printPerfil();
     }
+}
+
+Perfil Servidor::getPerfilByUsername(string username){
+    Perfil result;
+    result._usuario = "ERRO";
+    for(Perfil p : _perfis) {
+        if(p._usuario == username){
+            result = p;
+        }
+    }
+    return result;
 }

@@ -3,7 +3,7 @@
 #include <string>
 #include <time.h>
 
-#include "StringUtils.hpp"
+#include "../StringUtils/StringUtils.hpp"
 
 class Notificacao {
     private:

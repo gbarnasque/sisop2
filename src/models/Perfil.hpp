@@ -3,8 +3,8 @@
 #include <vector>
 #include <utility>
 
-#include "Notificacao.hpp"
-#include "StringUtils.hpp"
+#include "../models/Notificacao.hpp"
+#include "../StringUtils/StringUtils.hpp"
 
 using namespace std;
 

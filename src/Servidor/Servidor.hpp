@@ -9,11 +9,11 @@
 #include <vector>
 #include <utility> // pair make_pair
 
-#include "StringUtils.hpp"
-#include "TCPSocket.hpp"
-#include "Pacote.hpp"
-#include "Perfil.hpp"
-#include "Notificacao.hpp"
+#include "../StringUtils/StringUtils.hpp"
+#include "../TCPSocket/TCPSocket.hpp"
+#include "../models/Pacote.hpp"
+#include "../models/Perfil.hpp"
+#include "../models/Notificacao.hpp"
 
 typedef void * (*THREADFUNCPTR)(void *);
 
@@ -39,7 +39,7 @@ class Servidor {
         void handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
         void handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
 
-
+        Perfil getPerfilByUsername(string username);
         void printPerfis();
         static void* handleClientStatic(void* context);
         static bool checkStartupParameters(int argc, char** argv);
