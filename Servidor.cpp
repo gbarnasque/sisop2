@@ -15,7 +15,7 @@ Servidor::Servidor(char* port) {
         StringUtils::printDanger("Erro ao comecar o listen do servidor");
         exit(2);
     }
-    sem_init(&semaphorClientFD, 0, 1);
+    sem_init(&_semaphorClientFD, 0, 1);
 }
 
 void Servidor::start() {
@@ -24,7 +24,7 @@ void Servidor::start() {
 
         StringUtils::printInfo("Esperando algum cliente conectar... ");
 
-        sem_wait(&semaphorClientFD); // Espera a thread que vai lidar com o cliente pegar o clientFD
+        sem_wait(&_semaphorClientFD); // Espera a thread que vai lidar com o cliente pegar o clientFD
         _currentClientFD = _serverSocket->acceptConnection();
         if(_currentClientFD == -1) {
             StringUtils::printDanger("Houve um problema ao conectar com o cliente");
@@ -37,7 +37,7 @@ void Servidor::start() {
         if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
         //if (pthread_create(&clientHandlerThread, NULL, (THREADFUNCPTR) &Servidor::handleClient, this) == 0) { // Pointer to func
             StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
-            sem_post(&semaphorClientFD);
+            sem_post(&_semaphorClientFD);
         }
     }
     
@@ -55,7 +55,7 @@ void Servidor::handleClient() {
     int clientFD = _currentClientFD;
     char buffer[MAX_MSG];
 
-    sem_post(&semaphorClientFD); // Libera a próxima conexão depois de pegar o clientFD
+    sem_post(&_semaphorClientFD); // Libera a próxima conexão depois de pegar o clientFD
 
     StringUtils::printWarning("Outra Thread criada para lidar com as requisicoes do cliente");
 
@@ -75,6 +75,7 @@ void Servidor::handleClient() {
                 handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
                 break;
             case Comando::FOLLOW:
+                handleFollow(recebido->getPayload(), recebido->getUsuario());
                 StringUtils::printBold(recebido->serializeAsString());
                 //handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
                 break;
@@ -109,8 +110,8 @@ void Servidor::handleConnect(string usuario, int socketDescriptor) {
     StringUtils::printInfo("Lidando com a conexao do usuario " + usuario + " no socket " + to_string(socketDescriptor));
     //StringUtils::printBold(to_string(perfis.size()));
     // Procura se o usuário está logado já
-    for(int i=0; i<perfis.size(); i++) {
-        if(perfis[i]._usuario == usuario) {
+    for(int i=0; i<_perfis.size(); i++) {
+        if(_perfis[i]._usuario == usuario) {
             conectado = true;
             index = i;
             break;
@@ -120,13 +121,13 @@ void Servidor::handleConnect(string usuario, int socketDescriptor) {
     if(conectado) {
         //StringUtils::printWithPrefix(to_string(perfis[index]._socketDescriptors.size()), "Quantidade de conexoes: ", Color::NONE);
         // Caso esteja com duas conexẽos da ruim
-        if(perfis[index]._socketDescriptors.size() == 2) {
+        if(_perfis[index]._socketDescriptors.size() == 2) {
             string message = "Numero maximo de conexoes para o usuario excedido";
             send = new Pacote(Tipo::DATA, Status::ERROR, message);
             StringUtils::printWarning("Desconectando " + usuario + " no socket " +  to_string(socketDescriptor) + ". Motivo: " + message);
         }
         else { // Caso não, adiciona
-            perfis[index]._socketDescriptors.push_back(socketDescriptor);
+            _perfis[index]._socketDescriptors.push_back(socketDescriptor);
             send = new Pacote(Tipo::DATA, Status::OK, "Usuario conectado com sucesso");
         }
     }
@@ -134,7 +135,7 @@ void Servidor::handleConnect(string usuario, int socketDescriptor) {
         //StringUtils::printBold(usuario);
         //StringUtils::printBold(to_string(socketDescriptor));
         Perfil novoPerfil(usuario, socketDescriptor);
-        perfis.push_back(novoPerfil);
+        _perfis.push_back(novoPerfil);
         send = new Pacote(Tipo::DATA, Status::OK, "Usuario conectado com sucesso");
     }
 
@@ -148,19 +149,13 @@ void Servidor::handleConnect(string usuario, int socketDescriptor) {
 }
 
 void Servidor::handleDisconnect(string usuario, int socketDescriptor) {
-    for(vector<Perfil>::iterator perfil = perfis.begin(); perfil != perfis.end(); perfil++) {
+    for(vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         if(perfil->_usuario == usuario) {
-            if(perfil->_socketDescriptors.size() == 1) {
-                //StringUtils::printInfo("Desconectando cliente com somente um socket");
-                perfis.erase(perfil);
-            } 
-            else {
-                for(vector<int>::iterator socket = perfil->_socketDescriptors.begin(); socket != perfil->_socketDescriptors.end(); socket++) {
-                    if(*socket == socketDescriptor) {
-                        //StringUtils::printInfo("Desconectando cliente com MAIS de um socket");
-                        perfil->_socketDescriptors.erase(socket);
-                        break;
-                    }
+            for(vector<int>::iterator socket = perfil->_socketDescriptors.begin(); socket != perfil->_socketDescriptors.end(); socket++) {
+                if(*socket == socketDescriptor) {
+                    //StringUtils::printInfo("Desconectando cliente com MAIS de um socket");
+                    perfil->_socketDescriptors.erase(socket);
+                    break;
                 }
             }
             break;
@@ -178,6 +173,30 @@ void Servidor::handleSend(std::string usuario, time_t timestamp, std::string pay
     notificacao._tamanho = tamanhoPayload;
 
     notificacao.printNotificacao();    
+}
+
+void Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor) {
+    bool existeSeguido = false;
+    int index;
+    Pacote* send;
+    StringUtils::printInfo("Usuario " + usuarioSeguidor + " comecou a seguir " + usuarioSeguido);
+    //StringUtils::printBold(to_string(perfis.size()));
+    // Procura se o usuário está logado já
+    for(int i=0; i<_perfis.size(); i++) {
+        if(_perfis[i]._usuario == usuarioSeguido) {
+            existeSeguido = true;
+            index = i;
+            _perfis[i]._seguidores.push_back(usuarioSeguidor);
+            break;
+        }
+    }
+    if(!existeSeguido) {
+        Perfil novoPerfil;
+        novoPerfil._usuario = usuarioSeguido;
+        novoPerfil._seguidores.push_back(usuarioSeguidor);
+        _perfis.push_back(novoPerfil);
+    }
+    printPerfis();
 }
 
 
@@ -231,4 +250,10 @@ void Servidor::help() {
 
     StringUtils::printBold("DESCRIPTION");
     cout << "Programa para criacao de um servidor para atender os requisitos da parte 1" << endl << "do trabalho pratico da cadeira de Sistemas Operacionais II" << endl;
+}
+
+void Servidor::printPerfis() {
+    for(Perfil p : _perfis) {
+        p.printPerfil();
+    }
 }

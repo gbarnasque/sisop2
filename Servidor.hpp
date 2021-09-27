@@ -25,8 +25,8 @@ class Servidor {
     private: 
         int _currentClientFD;
         TCPSocket* _serverSocket;
-        sem_t semaphorClientFD;
-        std::vector<Perfil> perfis;
+        sem_t _semaphorClientFD;
+        std::vector<Perfil> _perfis;
 
     public:
         Servidor(char* port);
@@ -37,9 +37,10 @@ class Servidor {
         void handleConnect(std::string usuario, int socketDescriptor);
         void handleDisconnect(std::string usuario, int socketDescriptor);
         void handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
+        void handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
 
 
-        
+        void printPerfis();
         static void* handleClientStatic(void* context);
         static bool checkStartupParameters(int argc, char** argv);
         static void help();

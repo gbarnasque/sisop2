@@ -53,7 +53,7 @@ void Cliente::interact() {
         {
             case Comando::FOLLOW:
                 if(!lineEstaOK(sendLineString, comando)) {
-                    StringUtils::printDanger("O perfil a seguir deve conter entre 4 e 20 caracteres e comecar com @");
+                    StringUtils::printDanger("O perfil a seguir deve conter entre 4 e 20 caracteres e comecar com @. E, lembre-se, voce nao pode se seguir");
                     break;
                 }
 
@@ -118,7 +118,7 @@ bool Cliente::lineEstaOK(std::string line, Comando c) {
     switch (c)
     {
         case Comando::FOLLOW:
-            return (line.length() > 4 && line.length() < 20 && line[0] == '@');
+            return (line.length() > 4 && line.length() < 20 && line[0] == '@' && line != _usuario);
         case Comando::SEND:
             return (line.length() <= 128);
         default:

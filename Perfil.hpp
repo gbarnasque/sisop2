@@ -20,7 +20,9 @@ class Perfil {
 
         Perfil();
         ~Perfil();
+        Perfil(string usuario);
         Perfil(string usuario, int socketDescriptor);
-        
 
+        
+        void printPerfil();
 };
