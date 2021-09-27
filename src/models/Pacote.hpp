@@ -3,6 +3,7 @@
 #include <string>
 #include <string.h>
 #include <ctime>
+#include "../StringUtils/StringUtils.hpp"
 
 enum Tipo {
     DATA,

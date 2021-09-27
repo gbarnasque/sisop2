@@ -1,6 +1,4 @@
 #include <iostream>
-
-#include "StringUtils.hpp"
 #include "Pacote.hpp"
 
 Pacote::Pacote() {  

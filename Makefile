@@ -1,44 +1,45 @@
 CPP = g++
 FLAGS = -Wall -g -Werror -pthread
-UTILS = StringUtils.o TCPSocket.o Pacote.o Notificacao.o Perfil.o
+UTILS = ./objects/StringUtils.o ./objects/TCPSocket.o ./objects/Pacote.o ./objects/Notificacao.o ./objects/Perfil.o
+OBJSFOLDER = ./objects
 
-all: app_servidor app_cliente
+all: app_cliente app_servidor
 
 clean:
-	rm -rf *.o app_servidor app_cliente
+	rm -rf ${OBJSFOLDER}/*.o app_servidor app_cliente
 
 # Cliente Stuff
-app_cliente: ${UTILS} app_cliente.o Cliente.o
-	${CPP} ${FLAGS} -o app_cliente app_cliente.o Cliente.o ${UTILS}
+app_cliente: ${UTILS} ${OBJSFOLDER}/app_cliente.o ${OBJSFOLDER}/Cliente.o
+	${CPP} ${FLAGS} -o app_cliente ${OBJSFOLDER}/app_cliente.o ${OBJSFOLDER}/Cliente.o ${UTILS}
 
-Cliente.o: Cliente.cpp Cliente.hpp
-	${CPP} -c Cliente.cpp
+${OBJSFOLDER}/Cliente.o: src/Cliente/Cliente.cpp src/Cliente/Cliente.hpp
+	${CPP} -c src/Cliente/Cliente.cpp -o ${OBJSFOLDER}/Cliente.o
 
-app_cliente.o: app_cliente.cpp
-	${CPP} -c app_cliente.cpp
+${OBJSFOLDER}/app_cliente.o: src/Cliente/app_cliente.cpp
+	${CPP} -c src/Cliente/app_cliente.cpp -o ${OBJSFOLDER}/app_cliente.o
 
 # Servidor stuff
-app_servidor: ${UTILS} app_servidor.o Servidor.o 
-	${CPP} ${FLAGS} -o app_servidor app_servidor.o Servidor.o ${UTILS}
+app_servidor: ${UTILS} ${OBJSFOLDER}/app_servidor.o ${OBJSFOLDER}/Servidor.o 
+	${CPP} ${FLAGS} -o app_servidor ${OBJSFOLDER}/app_servidor.o ${OBJSFOLDER}/Servidor.o ${UTILS}
 
-Servidor.o: Servidor.cpp Servidor.hpp
-	${CPP} -c Servidor.cpp
+${OBJSFOLDER}/Servidor.o: src/Servidor/Servidor.cpp src/Servidor/Servidor.hpp
+	${CPP} -c src/Servidor/Servidor.cpp -o ${OBJSFOLDER}/Servidor.o
 
-app_servidor.o: app_servidor.cpp
-	${CPP} -c app_servidor.cpp
+${OBJSFOLDER}/app_servidor.o: src/Servidor/app_servidor.cpp
+	${CPP} -c src/Servidor/app_servidor.cpp -o ${OBJSFOLDER}/app_servidor.o
 
 # Utils
-StringUtils.o: StringUtils.cpp StringUtils.hpp
-	${CPP} -c StringUtils.cpp
+${OBJSFOLDER}/StringUtils.o: src/StringUtils/StringUtils.cpp src/StringUtils/StringUtils.hpp
+	${CPP} -c src/StringUtils/StringUtils.cpp -o ${OBJSFOLDER}/StringUtils.o
 
-TCPSocket.o: TCPSocket.cpp TCPSocket.hpp
-	${CPP} -c TCPSocket.cpp
+${OBJSFOLDER}/TCPSocket.o: src/TCPSocket/TCPSocket.cpp src/TCPSocket/TCPSocket.hpp
+	${CPP} -c src/TCPSocket/TCPSocket.cpp -o ${OBJSFOLDER}/TCPSocket.o
 
-Pacote.o: Pacote.cpp Pacote.hpp
-	${CPP} -c Pacote.cpp
+${OBJSFOLDER}/Pacote.o: src/models/Pacote.cpp src/models/Pacote.hpp
+	${CPP} -c src/models/Pacote.cpp -o ${OBJSFOLDER}/Pacote.o
 
-Perfil.o: Notificacao.o Perfil.cpp Perfil.hpp
-	${CPP} -c Perfil.cpp
+${OBJSFOLDER}/Perfil.o: src/models/Notificacao.o src/models/Perfil.cpp src/models/Perfil.hpp
+	${CPP} -c src/models/Perfil.cpp -o ${OBJSFOLDER}/Perfil.o
 
-Notificacao.o: Notificacao.cpp Notificacao.hpp
-	${CPP} -c Notificacao.cpp
+${OBJSFOLDER}/Notificacao.o: src/models/Notificacao.cpp src/models/Notificacao.hpp
+	${CPP} -c src/models/Notificacao.cpp -o ${OBJSFOLDER}/Notificacao.o

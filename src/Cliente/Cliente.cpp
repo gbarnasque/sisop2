@@ -10,7 +10,7 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
     std::string usuario(user);
     _usuario = usuario;
     Pacote* enviado = new Pacote(Tipo::COMMAND, time(NULL), Comando::CONNECT, usuario);
-    
+    //exit(0);
     _socket->sendMessage(enviado->serializeAsString().c_str());
 
     memset(receiveLine, 0, sizeof(receiveLine));
@@ -40,8 +40,40 @@ void Cliente::handleExit() {
     exit(0);
 }
 
-void Cliente::interact() {
-    StringUtils::printInfo("Esperando pelo input do usuario...");
+void* Cliente::receiveNotificationsStatic(void* context){
+    ((Cliente*)context)->receiveNotifications();
+    pthread_exit(NULL);
+}
+
+//recebe as notificações enviadas pelo servidor dos
+//perfis que o usuário segue e as imprime na tela
+void Cliente::receiveNotifications(){
+
+    StringUtils::printInfo("[RECEIVENOTIFICATIONS] Thread2 iniciada!");
+
+    memset(receiveLine, 0, sizeof(receiveLine));
+    
+    if(_socket->receive(receiveLine, MAX_MSG) == -1){
+        StringUtils::printDanger("O servidor encerrou a conexão");
+        exit(4);
+    }
+    //std::string receiveLineString(receiveLine);
+    
+    Pacote* p = new Pacote(receiveLine);
+    StringUtils::printInfo("[RECEIVENOTIFICATIONS] Mensagem recebida do servidor:");
+    StringUtils::printBold(p->serializeAsString());
+
+}
+
+void* Cliente::ProcessKeyboardInputStatic(void* context){
+    ((Cliente*)context)->ProcessKeyboardInput();
+    pthread_exit(NULL);
+}
+
+//Espera em busy wait pelo input do teclado do usuário
+void Cliente::ProcessKeyboardInput(){
+    StringUtils::printInfo("[PROCESSKEYBOARDINPUT] Thread1 iniciada!");
+    StringUtils::printInfo("[PROCESSKEYBOARDINPUT] Esperando pelo input do usuario...");
     while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
         Pacote* send;
 
@@ -72,22 +104,30 @@ void Cliente::interact() {
                 StringUtils::printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"");
                 break;
         }
-        /*
-        memset(receiveLine, 0, sizeof(receiveLine));
-        
-        if(_socket->receive(receiveLine, MAX_MSG) == -1){
-            StringUtils::printDanger("O servidor encerrou a conexão");
-            exit(4);
-        }
-        //std::string receiveLineString(receiveLine);
-        Pacote* p = new Pacote(receiveLine);
-        StringUtils::printInfo("Mensagem recebida do servidor:");
-        StringUtils::printBold(p->serializeAsString());
-        // */
         memset(sendLine, 0, sizeof(sendLine));
         StringUtils::printInfo("Esperando pelo input do usuario...");
     }
     handleExit();
+}
+
+//Cria duas threads para o funcionamento do cliente
+//A primeira detecta input do usuário e o processa, enviando-o para o servidor conforme necessário
+//A segunda espera receber pacotes do servidor e imprime as mensagens na tela
+void Cliente::interact() {
+
+    pthread_t thread1, thread2;
+
+    /* Create independent threads each of which will execute function */
+
+     pthread_create( &thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
+     pthread_create( &thread2, NULL, Cliente::receiveNotificationsStatic, this);
+
+     /* Wait till threads are complete before main continues. Unless we  */
+     /* wait we run the risk of executing an exit which will terminate   */
+     /* the process and all threads before the threads have completed.   */
+
+     pthread_join( thread1, NULL);
+     pthread_join( thread2, NULL); 
 }
 
 
