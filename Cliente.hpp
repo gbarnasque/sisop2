@@ -15,12 +15,17 @@ class Cliente {
     private:
         char sendLine[MAX_MSG], receiveLine[MAX_MSG];
         TCPSocket* _socket;
+        std::string _usuario;
 
     public:
         Cliente(char* serverIp, char* serverPort, char* user);        
         void handleExit(); 
 
         void interact();
+        
+        Comando getComandoFromLine(std::string line);
+        std::string removeComandoFromLine(std::string line);
+        bool lineEstaOK(std::string line, Comando c);
 
         static void help();
         static bool checkStartupParameters(int argc, char** argv);

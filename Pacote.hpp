@@ -18,6 +18,11 @@ enum Comando {
     NO = -1
 };
 
+enum Status {
+    OK,
+    ERROR
+};
+
 /*const char* TipoToString(Tipo t) {
     switch (t)
     {
@@ -31,7 +36,7 @@ class Pacote {
     private:
         Tipo _tipo;
         time_t _timestamp;
-        
+        Status _status;
         Comando _comando;
         std::string _usuario;
         std::string _payload;
@@ -52,11 +57,15 @@ class Pacote {
         Pacote(Tipo tipo, time_t timestamp, Comando comando, std::string usuario, std::string payload = "");
         Pacote(char* pacoteSerializado);
         Pacote(std::string pacoteSerializado);
+        Pacote(Tipo tipo, Status status, std::string payload);
+        Pacote(Status status, std::string payload);
 
         void setTipo(Tipo tipo);
         Tipo getTipo();
         void setTimestamp(time_t timestamp);
         time_t getTimestamp();
+        void setStatus(Status status);
+        Status getStatus();
         void setComando(Comando comando);
         Comando getComando();
         void setUsuario(std::string usuario);
@@ -65,8 +74,9 @@ class Pacote {
         std::string getPayload();
         int getTamanhoPayload();
 
-        char* serialize(char* message);
-        std::string serialize();
-        void deserialize(char* pacoteSerializado);
-        void deserialize(std::string pacoteSerializadoString);
+        char* serializeAsCharPointer();
+        std::string serializeAsString();
+        template <typename T>
+        void deserialize(T pacoteSerializado);
+        //void deserialize(std::string pacoteSerializadoString);
 };

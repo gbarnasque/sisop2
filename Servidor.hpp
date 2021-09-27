@@ -12,41 +12,35 @@
 #include "StringUtils.hpp"
 #include "TCPSocket.hpp"
 #include "Pacote.hpp"
+#include "Perfil.hpp"
+#include "Notificacao.hpp"
 
 typedef void * (*THREADFUNCPTR)(void *);
 
 #define MAX_MSG 1024
 #define MAX_CLIENTS 5
 
-struct notificacao {
-    int id;
-    time_t timestamp; // Momento em que a notificacao foi recebida
-    std::string message;
-    int tamanho;
-    int quantiadadeSeguidoresAReceber;
-};
-
-struct perfil {
-    std::string autor;
-    std::vector<std::string> seguidores;
-    std::vector<notificacao> notificacoesRecebidas;
-    std::vector<std::pair<std::string,int>> notificacoesPendentes; // <Perfil a receber, id notificacao>
-    std::vector<int> socketDescriptors;
-};
 
 class Servidor {
     private: 
         int _currentClientFD;
         TCPSocket* _serverSocket;
-        sem_t semaphorClientFD;
-        std::vector<perfil> perfis;
+        sem_t _semaphorClientFD;
+        std::vector<Perfil> _perfis;
 
     public:
         Servidor(char* port);
         void start();
         void info();
         void handleClient();
-        
+
+        void handleConnect(std::string usuario, int socketDescriptor);
+        void handleDisconnect(std::string usuario, int socketDescriptor);
+        void handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
+        void handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
+
+
+        void printPerfis();
         static void* handleClientStatic(void* context);
         static bool checkStartupParameters(int argc, char** argv);
         static void help();
