@@ -3,10 +3,13 @@ FLAGS = -Wall -g -Werror -pthread
 UTILS = ./objects/StringUtils.o ./objects/TCPSocket.o ./objects/Pacote.o ./objects/Notificacao.o ./objects/Perfil.o
 OBJSFOLDER = ./objects
 
-all: app_cliente app_servidor
+all: ${OBJSFOLDER} app_cliente app_servidor 
 
 clean:
 	rm -rf ${OBJSFOLDER}/*.o app_servidor app_cliente
+
+${OBJSFOLDER}:
+	mkdir ${OBJSFOLDER}
 
 # Cliente Stuff
 app_cliente: ${UTILS} ${OBJSFOLDER}/app_cliente.o ${OBJSFOLDER}/Cliente.o
