@@ -35,7 +35,7 @@ void Perfil::printPerfil() {
     if(_notificacoesPendentes.size() > 0) {
         std::string notificacoesPendentes = "";
         for(int i=0; i<_notificacoesPendentes.size(); i++) {
-            notificacoesPendentes.append("(").append(_notificacoesPendentes[i].first).append(",").append(to_string(_notificacoesPendentes[i].second)).append(", ");
+            notificacoesPendentes.append("(").append(_notificacoesPendentes[i].first).append(",").append(to_string(_notificacoesPendentes[i].second)).append("), ");
         }
         StringUtils::printLine(notificacoesPendentes);
     }

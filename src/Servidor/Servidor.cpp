@@ -16,6 +16,7 @@ Servidor::Servidor(char* port) {
         exit(2);
     }
     sem_init(&_semaphorClientFD, 0, 1);
+    _GLOBAL_NOTIFICACAO_ID = 0;
 }
 
 void Servidor::start() {
@@ -80,6 +81,7 @@ void Servidor::handleClient() {
                 //handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
                 break;
             default:
+                printPerfis();
                 break;
         }
 
@@ -168,11 +170,34 @@ void Servidor::handleDisconnect(string usuario, int socketDescriptor) {
 
 void Servidor::handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload) {
     Notificacao notificacao;
+    notificacao._id = _GLOBAL_NOTIFICACAO_ID++;
     notificacao._timestamp = timestamp;
     notificacao._mensagem = payload;
     notificacao._tamanho = tamanhoPayload;
 
     notificacao.printNotificacao();    
+
+    //notificacao.printNotificacao();    
+
+    std::vector<string> seguidores;
+    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        if(perfil->_usuario == usuario) {
+            notificacao._quantidadeSeguidoresAReceber = perfil->_seguidores.size();
+            notificacao.printNotificacao();
+            perfil->_notificacoesRecebidas.push_back(notificacao);
+            seguidores = perfil->_seguidores;
+            break;
+        }
+    }
+
+    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        for(std::vector<std::string>::iterator seguidor = seguidores.begin(); seguidor != seguidores.end(); seguidor++) {
+            if(perfil->_usuario == *seguidor) {
+                perfil->_notificacoesPendentes.push_back(std::make_pair(usuario, notificacao._id));
+                break;
+            }
+        }
+    }
 
     StringUtils::printInfo("Recebi mensagem, enviando notificacoes aos seguidores");
     Perfil perfilDoUsuario = getPerfilByUsername(usuario);
@@ -183,7 +208,6 @@ void Servidor::handleSend(std::string usuario, time_t timestamp, std::string pay
             _serverSocket->sendMessage(perfilSeguidor._socketDescriptors[0], pctNotificacao->serializeAsString().c_str());
         }
     }
-
 }
 
 void Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor) {
@@ -209,8 +233,6 @@ void Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSegui
     }
     printPerfis();
 }
-
-
 
 
 

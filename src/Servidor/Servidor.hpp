@@ -27,6 +27,7 @@ class Servidor {
         TCPSocket* _serverSocket;
         sem_t _semaphorClientFD;
         std::vector<Perfil> _perfis;
+        int _GLOBAL_NOTIFICACAO_ID;
 
     public:
         Servidor(char* port);
@@ -40,8 +41,8 @@ class Servidor {
         void handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
 
         Perfil getPerfilByUsername(string username);
-        void printPerfis();
         static void* handleClientStatic(void* context);
         static bool checkStartupParameters(int argc, char** argv);
         static void help();
+        void printPerfis();
 };
