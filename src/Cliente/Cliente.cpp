@@ -32,7 +32,6 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
 
 void Cliente::handleExit() {
     StringUtils::printWarning("Saindo do aplicativo cliente");
-    memset(sendLine, 0, sizeof(sendLine));
     Pacote* p = new Pacote();
     p->setComando(Comando::DISCONNECT);
     p->setStatus(Status::OK);
@@ -65,6 +64,13 @@ void Cliente::receiveNotifications(){
             {
                 case Comando::NOTIFICATION:
                     StringUtils::printWithRandomPrefixColor(p->getPayload(), p->getUsuario() + ":");
+                    break;
+
+
+
+                case Comando::DISCONNECT:
+                    StringUtils::printDanger(p->getPayload());
+                    handleExit();
                     break;
                 default:
                     if(p->getPayload().size() != 0);
@@ -148,8 +154,8 @@ void Cliente::interact() {
      /* wait we run the risk of executing an exit which will terminate   */
      /* the process and all threads before the threads have completed.   */
 
-     pthread_join( thread1, NULL);
-     pthread_join( thread2, NULL); 
+     pthread_join(thread1, NULL);
+     pthread_join(thread2, NULL);
 }
 
 

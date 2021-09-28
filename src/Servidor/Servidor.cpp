@@ -322,8 +322,9 @@ Perfil Servidor::getPerfilByUsername(string username){
 
 void Servidor::gracefullShutDown() {
     saveFile();
-    
-    _serverSocket->closeSocket();
+    notifyAllConnectedClients();
+    if(_serverSocket->closeSocket())
+        StringUtils::printSuccess("Servidor desligado com sucesso!");
     exit(0);
 }
 
@@ -351,23 +352,29 @@ void Servidor::fillFromFile() {
         std::string line = "";
         file >> line;
         if(line.size() > 1) {
-            //line = StringUtils::removeNewLineAtEnd(line);
-            StringUtils::printBold(line);
             std::string usuario = line.substr(0, line.find_first_of(";"));
             novoPerfil._usuario = usuario;
-            StringUtils::printBold(usuario);
             line = line.substr(line.find_first_of(";")+1);
             std::size_t pontoVirgula;
             while((pontoVirgula = line.find_first_of(";")) != std::string::npos) {
                 std::string seguidor = line.substr(0, pontoVirgula);
-                StringUtils::printBold(seguidor);
                 novoPerfil._seguidores.push_back(seguidor);
                 line = line.substr(pontoVirgula+1);
             }
             _perfis.push_back(novoPerfil);
         }
     }
-
     file.close();
-    printPerfis();
+}
+
+void Servidor::notifyAllConnectedClients() {
+    Pacote* send = new Pacote();
+    send->setComando(Comando::DISCONNECT);
+    send->setPayload("O Servidor esta sendo desligado!");
+    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        for(int i=0; i<perfil->_socketDescriptors.size(); i++) {
+            int socket = perfil->_socketDescriptors[i];
+            _serverSocket->sendMessage(socket, send->serializeAsString().c_str());
+        }
+    }
 }

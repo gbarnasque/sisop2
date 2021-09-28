@@ -33,6 +33,7 @@ class Servidor {
 
         void saveFile();
         void fillFromFile();
+        void notifyAllConnectedClients();
 
     public:
         Servidor(char* port);
