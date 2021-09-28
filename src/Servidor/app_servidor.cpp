@@ -1,6 +1,13 @@
 #include <iostream>
+#include <signal.h> //signal
 
 #include "Servidor.hpp"
+
+Servidor* Signalhandler;
+
+void handleSignal(int sigNum) {
+    Signalhandler->gracefullShutDown();
+}
 
 int main(int argc, char** argv) { 
     if(!Servidor::checkStartupParameters(argc, argv)) {
@@ -8,9 +15,13 @@ int main(int argc, char** argv) {
         exit(0);
     }
 
+    signal(SIGINT, handleSignal);
+
     //StringUtils::testColors();
 
     Servidor* s = new Servidor(argv[1]);
+    Signalhandler = s;
+    
     s->info();
     s->start();
 

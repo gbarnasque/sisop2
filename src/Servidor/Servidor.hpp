@@ -8,6 +8,7 @@
 #include <ctime>
 #include <vector>
 #include <utility> // pair make_pair
+#include <fstream>
 
 #include "../StringUtils/StringUtils.hpp"
 #include "../TCPSocket/TCPSocket.hpp"
@@ -28,6 +29,10 @@ class Servidor {
         sem_t _semaphorClientFD;
         std::vector<Perfil> _perfis;
         int _GLOBAL_NOTIFICACAO_ID;
+        std::string _saveFileName;
+
+        void saveFile();
+        void fillFromFile();
 
     public:
         Servidor(char* port);
@@ -35,14 +40,17 @@ class Servidor {
         void info();
         void handleClient();
 
-        void handleConnect(std::string usuario, int socketDescriptor);
+        Pacote handleConnect(std::string usuario, int socketDescriptor);
         void handleDisconnect(std::string usuario, int socketDescriptor);
         void handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
-        void handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
+        Pacote handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
 
         Perfil getPerfilByUsername(string username);
         static void* handleClientStatic(void* context);
         static bool checkStartupParameters(int argc, char** argv);
         static void help();
         void printPerfis();
+
+
+        void gracefullShutDown();
 };

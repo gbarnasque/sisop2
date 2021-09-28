@@ -1,6 +1,5 @@
 #include <iostream>
 #include <signal.h> //signal
-#include <string.h>
 
 #include "Cliente.hpp"
 

@@ -67,6 +67,7 @@ class StringUtils {
         static void print(string s, Color colorCode, bool bold);
         static void printBold(string s);
         static void printWithPrefix(string s, string prefix, Color colorCode);
+        static void printWithRandomPrefixColor(string s, string prefix);
 
         static void printInfo(string s);
         static void printWarning(string s);
