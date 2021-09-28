@@ -28,6 +28,8 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
         exit(4);
     }
     
+    enviado->setComando(Comando::GETNOTIFICATIONS);
+    _socket->sendMessage(enviado->serializeAsString().c_str());
 }
 
 void Cliente::handleExit() {
@@ -65,16 +67,14 @@ void Cliente::receiveNotifications(){
                 case Comando::NOTIFICATION:
                     StringUtils::printWithRandomPrefixColor(p->getPayload(), p->getUsuario() + ":");
                     break;
-
-
-
                 case Comando::DISCONNECT:
                     StringUtils::printDanger(p->getPayload());
                     handleExit();
                     break;
                 default:
+                    //exit(-1);
                     if(p->getPayload().size() != 0);
-                        StringUtils::printSuccess(p->getPayload());
+                        StringUtils::printSuccess(p->serializeAsString());
                     break;
             }
         } 

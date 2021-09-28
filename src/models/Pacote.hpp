@@ -16,6 +16,7 @@ enum Comando {
     SEND,
     FOLLOW,
     NOTIFICATION,
+    GETNOTIFICATIONS,
     TESTE,
     NO = -1
 };

@@ -34,6 +34,8 @@ class Servidor {
         void saveFile();
         void fillFromFile();
         void notifyAllConnectedClients();
+        Pacote sendNotificacao(std::string from, int idNotificacao);
+        void sendNotificacoes(std::string to);
 
     public:
         Servidor(char* port);
@@ -43,7 +45,7 @@ class Servidor {
 
         Pacote handleConnect(std::string usuario, int socketDescriptor);
         void handleDisconnect(std::string usuario, int socketDescriptor);
-        void handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
+        Pacote handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
         Pacote handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
 
         Perfil getPerfilByUsername(string username);
