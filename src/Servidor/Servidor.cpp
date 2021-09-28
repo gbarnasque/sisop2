@@ -261,12 +261,12 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
                         //p->printPerfil();
                         for(std::vector<std::pair<std::string,int>>::iterator par = p->_notificacoesPendentes.begin(); par != p->_notificacoesPendentes.end(); par++) {
                             if(par->second == idNotificacao) {
-                                //StringUtils::printInfo("Pendencia encontrada");
+                                StringUtils::printInfo("Pendencia encontrada " + from + " to " + p->_usuario);
                                 bool sent = false;
                                 for(int i=0; i<p->_socketDescriptors.size(); i++) {
                                     _serverSocket->sendMessage(p->_socketDescriptors[i], pacote->serializeAsString().c_str());
                                     sent = true;
-                                    //StringUtils::printInfo("Pendencia enviada");
+                                    StringUtils::printInfo("Pendencia enviada "  + from + " to " + p->_usuario);
                                 }
                                 if(sent) {
                                     //StringUtils::printInfo("Notificacao pendente sendo apagada e diminuindo numero da not");
@@ -295,6 +295,7 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
     }
     return p;
 }
+
 
 void Servidor::sendNotificacoes(std::string to) {
     std::vector<std::pair<std::string, int>> notificacoes;

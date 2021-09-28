@@ -63,27 +63,37 @@ bool TCPSocket::connectSocket() {
 // https://man7.org/linux/man-pages/man2/send.2.html
 // On success, these calls return the number of bytes sent. On error, -1 is returned
 int TCPSocket::sendMessage(char* message) {
-    //StringUtils::printDanger(message);
-    //StringUtils::printDanger(to_string(_serverFD));
-    return send(_serverFD, message, strlen(message), 0);
+    size_t numberOfBytes = send(_serverFD, message, strlen(message), 0);
+    //StringUtils::printInfo(to_string(numberOfBytes) + " bytes enviados para o socket " + to_string(_serverFD));
+    return numberOfBytes;
 }
 int TCPSocket::sendMessage(const char* message) {
-    //StringUtils::printDanger(message);
-    //StringUtils::printDanger(to_string(_serverFD));
-    return send(_serverFD, message, strlen(message), 0);
+    size_t numberOfBytes = send(_serverFD, message, strlen(message), 0);
+    //StringUtils::printInfo(to_string(numberOfBytes) + " bytes enviados para o socket " + to_string(_serverFD));
+    return numberOfBytes;
 }
 int TCPSocket::sendMessage(int clientFD, char* message) {
-    return send(clientFD, message, strlen(message), 0);
+    size_t numberOfBytes = send(clientFD, message, strlen(message), 0);
+    //StringUtils::printInfo(to_string(numberOfBytes) + " bytes enviados para o socket " + to_string(clientFD));
+    return numberOfBytes;
 }
 int TCPSocket::sendMessage(int clientFD, const char* message) {
-    return send(clientFD, message, strlen(message), 0);
+    size_t numberOfBytes = send(clientFD, message, strlen(message), 0);
+    //StringUtils::printInfo(to_string(numberOfBytes) + " bytes enviados para o socket " + to_string(clientFD));
+    return numberOfBytes;
 }
 
 int TCPSocket::receive(char* buffer, int maxMessageSize) {
-    return recv(_serverFD, buffer, maxMessageSize, 0);
+    size_t numberOfBytes = recv(_serverFD, buffer, maxMessageSize, 0);
+    //StringUtils::printInfo(to_string(numberOfBytes) + " bytes recebidos do o socket " + to_string(_serverFD));
+    //StringUtils::printDanger(buffer);
+    return numberOfBytes;
 }
 int TCPSocket::receive(int clientFD, char* buffer, int maxMessageSize) {
-    return recv(clientFD, buffer, maxMessageSize, 0);
+    size_t numberOfBytes = recv(clientFD, buffer, maxMessageSize, 0);
+    //StringUtils::printInfo(to_string(numberOfBytes) + " bytes recebidos do o socket " + to_string(clientFD));
+    //StringUtils::printDanger(buffer);
+    return numberOfBytes;
 }
 
 // https://man7.org/linux/man-pages/man2/close.2.html

@@ -3,6 +3,7 @@
 #include <string>
 #include <string.h>
 #include <ctime>
+#include <vector>
 #include "../StringUtils/StringUtils.hpp"
 
 enum Tipo {
@@ -82,4 +83,6 @@ class Pacote {
         template <typename T>
         void deserialize(T pacoteSerializado);
         //void deserialize(std::string pacoteSerializadoString);
+
+        static std::vector<Pacote> getMultiplosPacotes(const char* pacotesSerializados);
 };

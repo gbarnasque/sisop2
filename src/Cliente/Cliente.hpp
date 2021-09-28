@@ -5,6 +5,8 @@
 #include <string.h>
 #include <string>
 #include <pthread.h>
+#include <vector>
+//#include <semaphore.h>
 
 #include "../StringUtils/StringUtils.hpp"
 #include "../TCPSocket/TCPSocket.hpp"
@@ -17,6 +19,7 @@ class Cliente {
         char sendLine[MAX_MSG], receiveLine[MAX_MSG];
         TCPSocket* _socket;
         std::string _usuario;
+        std::vector<Pacote> _pacotes;
 
     public:
         Cliente(char* serverIp, char* serverPort, char* user);        
@@ -25,9 +28,11 @@ class Cliente {
         void interact();
         void ProcessKeyboardInput();
         void receiveNotifications();
+        //void HandlePacotes();
 
         static void* ProcessKeyboardInputStatic(void* context);
         static void* receiveNotificationsStatic(void* context);
+        //static void* HandlePacotesStatic(void* context);
         
         Comando getComandoFromLine(std::string line);
         std::string removeComandoFromLine(std::string line);

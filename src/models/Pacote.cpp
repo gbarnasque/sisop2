@@ -260,52 +260,17 @@ void Pacote::deserialize(T pacoteSerializado) {
         }
     }
 }
-/*
-void Pacote::deserialize(std::string pacoteSerializadoString) {
-    std::string nome;
-    std::string valor; 
-    StringUtils::printLine(pacoteSerializadoString);
-   
-    if(pacoteSerializadoString.length() != 2) {
-        while(pacoteSerializadoString.length() != 1 && pacoteSerializadoString.length() != 0) {
-            std::size_t aspasAntes = pacoteSerializadoString.find_first_of("\"");
-            std::size_t aspasPos = pacoteSerializadoString.find_first_of("\"", aspasAntes+1);
-            nome = pacoteSerializadoString.substr(aspasAntes + 1, aspasPos - aspasAntes - 1);
 
-            //StringUtils::printLine("Nome: ");
-            //StringUtils::printLine(nome);
-            pacoteSerializadoString = pacoteSerializadoString.substr(aspasPos+2);
-            
-            std::size_t terminador = pacoteSerializadoString.find_first_of(",}");
-            valor = pacoteSerializadoString.substr(0, terminador);
+std::vector<Pacote> Pacote::getMultiplosPacotes(const char* pacotesSerializados) {
+    std::vector<Pacote> pacotes;
+    std::string pacotesSerializadosString(pacotesSerializados);
 
-            //*
-            if(nome == "tipo") {
-                setTipo(static_cast<Tipo>(std::stoi(valor)));
-            }
-            else if(nome == "timestamp") {
-                setTimestamp(std::stol(valor));
-            }
-            else if(nome == "payload") {
-                valor.erase(0, 1); // Remove " inicial
-                valor.erase(valor.end()-1); // Remove " final
-                setPayload(valor);
-            }
-            else if(nome == "usuario") {
-                valor.erase(0, 1); // Remove " inicial
-                valor.erase(valor.end()-1); // Remove " final
-                setUsuario(valor);
-            }
-            else if(nome == "comando") {
-                setComando(static_cast<Comando>(stoi(valor)));
-            }
-            // 
-            //StringUtils::printLine("Valor: ");
-            //StringUtils::printLine(valor);
-
-            pacoteSerializadoString = pacoteSerializadoString.substr(terminador);
-            //StringUtils::printLine(pacoteSerializadoString);
-        }
+    std::size_t terminador;
+    while((terminador = pacotesSerializadosString.find_first_of("}")) != std::string::npos ) {
+        Pacote novoPacote(pacotesSerializadosString.substr(0, terminador+1));
+        pacotes.push_back(novoPacote);
+        pacotesSerializadosString = pacotesSerializadosString.substr(terminador+1);
     }
+    
+    return pacotes;
 }
-*/
