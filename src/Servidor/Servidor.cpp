@@ -38,7 +38,6 @@ void Servidor::start() {
 
         pthread_t clientHandlerThread;
         if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
-        //if (pthread_create(&clientHandlerThread, NULL, (THREADFUNCPTR) &Servidor::handleClient, this) == 0) { // Pointer to func
             StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
             sem_post(&_semaphorClientFD);
         }
@@ -53,7 +52,6 @@ void* Servidor::handleClientStatic(void* context) {
 }
 
 void Servidor::handleClient() {
-     //StringUtils::printInfo("Entered thread");
     int n;
     int clientFD = _currentClientFD;
     char buffer[MAX_MSG];
@@ -81,24 +79,17 @@ void Servidor::handleClient() {
             case Comando::FOLLOW:
                 send = handleFollow(recebido->getPayload(), recebido->getUsuario());
                 StringUtils::printBold(recebido->serializeAsString());
-                //handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
                 break;
             case Comando::GETNOTIFICATIONS:
                 sendNotificacoes(recebido->getUsuario());
                 break;
             case Comando::TESTE:
-                //sendNotificacao("@teste");
                 printPerfis();
                 break;
             default:
                 break;
         }
         
-        /*
-        StringUtils::printInfo("Mensagem recebida e enviada de volta ao cliente: ");
-        StringUtils::printBold(recebido->serializeAsString());
-        //strcpy(buffer,StringUtils::removeNewLineAtEnd(buffer));
-        */
         if(recebido->getComando() != Comando::GETNOTIFICATIONS) {
             if(_serverSocket->sendMessage(clientFD, send.serializeAsString().c_str()) == -1)
                 StringUtils::printDanger("erro ao enviar a mensagem de volta");
@@ -116,14 +107,12 @@ void Servidor::handleClient() {
         StringUtils::printWarning("Cliente se desconectou do servidor");
 }
 
-// Talvez botar semaforo aqui
 Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
     bool conectado = false;
     int index;
     Pacote send(Tipo::DATA, Status::OK, "Usuario conectado com sucesso!");
     StringUtils::printInfo("Lidando com a conexao do usuario " + usuario + " no socket " + to_string(socketDescriptor));
-    //StringUtils::printBold(to_string(perfis.size()));
-    // Procura se o usuário está logado já
+
     for(int i=0; i<_perfis.size(); i++) {
         if(_perfis[i]._usuario == usuario) {
             conectado = true;
@@ -131,9 +120,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
             break;
         }
     }
-    //StringUtils::printBold(to_string(conectado));
     if(conectado) {
-        //StringUtils::printWithPrefix(to_string(perfis[index]._socketDescriptors.size()), "Quantidade de conexoes: ", Color::NONE);
         // Caso esteja com duas conexẽos da ruim
         if(_perfis[index]._socketDescriptors.size() == 2) {
             string message = "Numero maximo de conexoes para o usuario excedido";
@@ -146,8 +133,6 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
         }
     }
     else {
-        //StringUtils::printBold(usuario);
-        //StringUtils::printBold(to_string(socketDescriptor));
         Perfil novoPerfil(usuario, socketDescriptor);
         _perfis.push_back(novoPerfil);
     }
@@ -168,7 +153,6 @@ void Servidor::handleDisconnect(string usuario, int socketDescriptor) {
         if(perfil->_usuario == usuario) {
             for(vector<int>::iterator socket = perfil->_socketDescriptors.begin(); socket != perfil->_socketDescriptors.end(); socket++) {
                 if(*socket == socketDescriptor) {
-                    //StringUtils::printInfo("Desconectando cliente com MAIS de um socket");
                     perfil->_socketDescriptors.erase(socket);
                     break;
                 }
@@ -251,33 +235,20 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
     p.setPayload("Mensagem enviada com sucesso!");
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         if(perfil->_usuario == from) {
-            //StringUtils::printInfo("Usuario encontrado");
             for(std::vector<Notificacao>::iterator notificacao = perfil->_notificacoesRecebidas.begin(); notificacao != perfil->_notificacoesRecebidas.end(); notificacao++) {
                 if(notificacao->_id == idNotificacao) {
                     Pacote* pacote = new Pacote(Tipo::DATA, notificacao->_timestamp, Comando::NOTIFICATION, from, notificacao->_mensagem);
-                    //StringUtils::printInfo("Notificacao encontrada");
                     for(std::vector<Perfil>::iterator p = _perfis.begin(); p != _perfis.end(); p++) {
-                        //StringUtils::printInfo("Perfil sendo visistado");
-                        //p->printPerfil();
                         for(std::vector<std::pair<std::string,int>>::iterator par = p->_notificacoesPendentes.begin(); par != p->_notificacoesPendentes.end(); par++) {
                             if(par->second == idNotificacao) {
-                                StringUtils::printInfo("Pendencia encontrada " + from + " to " + p->_usuario);
                                 bool sent = false;
                                 for(int i=0; i<p->_socketDescriptors.size(); i++) {
                                     _serverSocket->sendMessage(p->_socketDescriptors[i], pacote->serializeAsString().c_str());
                                     sent = true;
-                                    StringUtils::printInfo("Pendencia enviada "  + from + " to " + p->_usuario);
                                 }
                                 if(sent) {
-                                    //StringUtils::printInfo("Notificacao pendente sendo apagada e diminuindo numero da not");
-                                    //StringUtils::printInfo("Perfis Antes");
-                                    //printPerfis();
                                     p->_notificacoesPendentes.erase(par);
                                     notificacao->_quantidadeSeguidoresAReceber--;
-                                    //StringUtils::printInfo("Perfis Depois");
-                                    //printPerfis();
-                                    //StringUtils::printBold("");
-                                    //notificacao->printNotificacao();
                                     break;
                                 }
                             }

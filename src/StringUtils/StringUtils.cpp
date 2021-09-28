@@ -129,7 +129,7 @@ void StringUtils::printLine(string s) {
     cout << s << endl;
 }
 
-void StringUtils::printLine(char* s) {
+void StringUtils::printLine(const char* s) {
     cout << s << endl;
 }
 

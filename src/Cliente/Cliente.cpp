@@ -12,7 +12,6 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
     std::string usuario(user);
     _usuario = usuario;
     Pacote* enviado = new Pacote(Tipo::COMMAND, time(NULL), Comando::CONNECT, usuario);
-    //exit(0);
     _socket->sendMessage(enviado->serializeAsString().c_str());
     
     memset(recvLine, 0, sizeof(recvLine));
@@ -42,48 +41,6 @@ void Cliente::handleExit() {
     _socket->closeSocket();
     exit(0);
 }
-/*
-void* Cliente::HandlePacotesStatic(void* context) {
-    ((Cliente*)context)->HandlePacotes();
-    pthread_exit(NULL);
-}
-
-void Cliente::HandlePacotes() {
-    //sem_t pacoteHandler;
-    //sem_init(&pacoteHandler, 0, 1);
-    StringUtils::printInfo("[HANDLEPACOTES] Thread3 iniciada!");
-
-    while(true) {
-        //sem_wait(&pacoteHandler);
-        while(_pacotes.size() != 0) {
-            Pacote p = _pacotes[0];
-            StringUtils::printWarning(p.serializeAsString());
-            if(p.getStatus() == Status::OK){
-                switch (p.getComando())
-                {
-                    case Comando::NOTIFICATION:
-                        StringUtils::printWithRandomPrefixColor(p.getPayload(), p.getUsuario() + ":");
-                        break;
-                    case Comando::DISCONNECT:
-                        StringUtils::printDanger(p.getPayload());
-                        handleExit();
-                        break;
-                    default:
-                        //exit(-1);
-                        if(p.getPayload().size() != 0);
-                            StringUtils::printSuccess(p.getPayload());
-                        break;
-                }
-            } 
-            else {
-                if(p.getPayload().size() != 0);
-                    StringUtils::printDanger(p.getPayload());
-            }
-            _pacotes.erase(_pacotes.begin());
-        }
-    }
-}
-*/
 
 void* Cliente::receiveNotificationsStatic(void* context){
     ((Cliente*)context)->receiveNotifications();
@@ -102,7 +59,6 @@ void Cliente::receiveNotifications(){
         std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
         
         for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
-            //StringUtils::printWarning(pacote->serializeAsString());
             if(pacote->getStatus() == Status::OK){
                 switch (pacote->getComando())
                 {
@@ -114,7 +70,6 @@ void Cliente::receiveNotifications(){
                         handleExit();
                         break;
                     default:
-                        //exit(-1);
                         if(pacote->getPayload().size() != 0);
                             StringUtils::printSuccess(pacote->getPayload());
                         break;
@@ -125,10 +80,6 @@ void Cliente::receiveNotifications(){
                     StringUtils::printDanger(pacote->getPayload());
             }
         }
-        
-        //StringUtils::printInfo("[RECEIVENOTIFICATIONS] Mensagem recebida do servidor:");
-        
-        //StringUtils::printBold(p->serializeAsString());
         
         memset(rcvLine, 0, sizeof(rcvLine));
     }
@@ -142,7 +93,6 @@ void* Cliente::ProcessKeyboardInputStatic(void* context){
     pthread_exit(NULL);
 }
 
-//Espera em busy wait pelo input do teclado do usuário
 void Cliente::ProcessKeyboardInput(){
     StringUtils::printInfo("[PROCESSKEYBOARDINPUT] Esperando pelo input do usuario...");
     while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
@@ -188,14 +138,9 @@ void Cliente::interact() {
 
     pthread_t thread1, thread2;
 
-    /* Create independent threads each of which will execute function */
 
     pthread_create(&thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
     pthread_create(&thread2, NULL, Cliente::receiveNotificationsStatic, this);
-
-     /* Wait till threads are complete before main continues. Unless we  */
-     /* wait we run the risk of executing an exit which will terminate   */
-     /* the process and all threads before the threads have completed.   */
 
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);

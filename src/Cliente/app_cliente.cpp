@@ -6,7 +6,6 @@
 Cliente* Signalhandler;
 
 void handleSignal(int sigNum) {
-    //StringUtils::print("Entered signal handler", YELLOW_TEXT);
     Signalhandler->handleExit();
 }
 
@@ -17,13 +16,7 @@ int main(int argc, char** argv) {
     }
     
     signal(SIGINT, handleSignal);
-    
-   /* char* ip;
-    char* port;
-    strcpy(ip, argv[2]);
-    strcpy(port, argv[3]);
-*/
-    std::cout << argv[2] << ":" << argv[3] << std::endl;
+
     Cliente* c = new Cliente(argv[2], argv[3], argv[1]);
     Signalhandler = c;
     
