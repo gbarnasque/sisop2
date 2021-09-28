@@ -16,6 +16,8 @@ enum Comando {
     SEND,
     FOLLOW,
     NOTIFICATION,
+    GETNOTIFICATIONS,
+    TESTE,
     NO = -1
 };
 
@@ -53,7 +55,7 @@ class Pacote {
 
     public:
         Pacote();
-        ~Pacote();
+        //~Pacote();
         Pacote(Tipo tipo, time_t timestamp, std::string payload);
         Pacote(Tipo tipo, time_t timestamp, Comando comando, std::string usuario, std::string payload = "");
         Pacote(char* pacoteSerializado);

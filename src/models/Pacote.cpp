@@ -36,12 +36,18 @@ Pacote::Pacote(Tipo tipo, Status status, std::string payload) {
     _status = status;
     _payload = payload;
     _tamanhoPayload = _payload.length();
+    _timestamp = time(NULL);
+    _comando = Comando::NO;
+    _usuario = "";
 }
 Pacote::Pacote(Status status, std::string payload) {
     _status = status;
     _payload = payload;
     _tamanhoPayload = payload.length();
     _tipo = Tipo::DATA;
+    _timestamp = time(NULL);
+    _comando = Comando::NO;
+    _usuario = "";
 }
 
 Pacote::Pacote(char* pacoteSerializado) {

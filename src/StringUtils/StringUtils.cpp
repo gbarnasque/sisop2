@@ -115,6 +115,16 @@ void StringUtils::printWithPrefix(string s, string prefix, Color colorCode) {
     cout << outString << endl;
 }
 
+void StringUtils::printWithRandomPrefixColor(string s, string prefix) {
+    unsigned int seed = 0;
+    for(char c: prefix) {
+        seed += c;
+    }
+    srand(seed);
+    Color color = static_cast<Color>(rand()%16); 
+    printWithPrefix(s, prefix, color);
+}
+
 void StringUtils::printLine(string s) {
     cout << s << endl;
 }
