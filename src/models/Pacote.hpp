@@ -27,15 +27,6 @@ enum Status {
     ERROR
 };
 
-/*const char* TipoToString(Tipo t) {
-    switch (t)
-    {
-    case DATA: return "DATA";
-    case COMMAND: return "COMMANDO";
-    default: return "";
-    }
-}*/
-
 class Pacote {
     private:
         Tipo _tipo;
@@ -49,9 +40,6 @@ class Pacote {
         template <typename T>
         std::string generateInt(string identificador, T i, bool end = false);
         std::string generateString(string identificador, string s, bool end = false);
-         //std::string generateInt(string identificador, int t, bool end);
-        //std::string generateInt(string identificador, time_t t, bool end);
-        //std::string generateInt(string identificador, Tipo t, bool end);
         
 
     public:
@@ -82,7 +70,6 @@ class Pacote {
         std::string serializeAsString();
         template <typename T>
         void deserialize(T pacoteSerializado);
-        //void deserialize(std::string pacoteSerializadoString);
 
         static std::vector<Pacote> getMultiplosPacotes(const char* pacotesSerializados);
 };

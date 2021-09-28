@@ -74,7 +74,7 @@ class StringUtils {
         static void printDanger(string s);
         static void printSuccess(string s);
         static void printLine(string s);
-        static void printLine(char* s);
+        static void printLine(const char* s);
 
         static string removeNewLineAtEnd(string s);
         static char* removeNewLineAtEnd(char* s);

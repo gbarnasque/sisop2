@@ -17,8 +17,6 @@ int main(int argc, char** argv) {
 
     signal(SIGINT, handleSignal);
 
-    //StringUtils::testColors();
-
     Servidor* s = new Servidor(argv[1]);
     Signalhandler = s;
     
