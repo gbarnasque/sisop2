@@ -41,7 +41,7 @@ ${OBJSFOLDER}/TCPSocket.o: src/TCPSocket/TCPSocket.cpp src/TCPSocket/TCPSocket.h
 ${OBJSFOLDER}/Pacote.o: src/models/Pacote.cpp src/models/Pacote.hpp
 	${CPP} -c src/models/Pacote.cpp -o ${OBJSFOLDER}/Pacote.o
 
-${OBJSFOLDER}/Perfil.o: src/models/Notificacao.o src/models/Perfil.cpp src/models/Perfil.hpp
+${OBJSFOLDER}/Perfil.o: ${OBJSFOLDER}/Notificacao.o src/models/Perfil.cpp src/models/Perfil.hpp
 	${CPP} -c src/models/Perfil.cpp -o ${OBJSFOLDER}/Perfil.o
 
 ${OBJSFOLDER}/Notificacao.o: src/models/Notificacao.cpp src/models/Notificacao.hpp
