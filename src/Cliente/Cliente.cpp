@@ -74,7 +74,7 @@ void Cliente::receiveNotifications(){
                 default:
                     //exit(-1);
                     if(p->getPayload().size() != 0);
-                        StringUtils::printSuccess(p->serializeAsString());
+                        StringUtils::printSuccess(p->getPayload());
                     break;
             }
         } 

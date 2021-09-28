@@ -251,33 +251,33 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
     p.setPayload("Mensagem enviada com sucesso!");
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         if(perfil->_usuario == from) {
-            StringUtils::printInfo("Usuario encontrado");
+            //StringUtils::printInfo("Usuario encontrado");
             for(std::vector<Notificacao>::iterator notificacao = perfil->_notificacoesRecebidas.begin(); notificacao != perfil->_notificacoesRecebidas.end(); notificacao++) {
                 if(notificacao->_id == idNotificacao) {
                     Pacote* pacote = new Pacote(Tipo::DATA, notificacao->_timestamp, Comando::NOTIFICATION, from, notificacao->_mensagem);
-                    StringUtils::printInfo("Notificacao encontrada");
+                    //StringUtils::printInfo("Notificacao encontrada");
                     for(std::vector<Perfil>::iterator p = _perfis.begin(); p != _perfis.end(); p++) {
-                        StringUtils::printInfo("Perfil sendo visistado");
-                        p->printPerfil();
+                        //StringUtils::printInfo("Perfil sendo visistado");
+                        //p->printPerfil();
                         for(std::vector<std::pair<std::string,int>>::iterator par = p->_notificacoesPendentes.begin(); par != p->_notificacoesPendentes.end(); par++) {
                             if(par->second == idNotificacao) {
-                                StringUtils::printInfo("Pendencia encontrada");
+                                //StringUtils::printInfo("Pendencia encontrada");
                                 bool sent = false;
                                 for(int i=0; i<p->_socketDescriptors.size(); i++) {
                                     _serverSocket->sendMessage(p->_socketDescriptors[i], pacote->serializeAsString().c_str());
                                     sent = true;
-                                    StringUtils::printInfo("Pendencia enviada");
+                                    //StringUtils::printInfo("Pendencia enviada");
                                 }
                                 if(sent) {
-                                    StringUtils::printInfo("Notificacao pendente sendo apagada e diminuindo numero da not");
-                                    StringUtils::printInfo("Perfis Antes");
-                                    printPerfis();
+                                    //StringUtils::printInfo("Notificacao pendente sendo apagada e diminuindo numero da not");
+                                    //StringUtils::printInfo("Perfis Antes");
+                                    //printPerfis();
                                     p->_notificacoesPendentes.erase(par);
                                     notificacao->_quantidadeSeguidoresAReceber--;
-                                    StringUtils::printInfo("Perfis Depois");
-                                    printPerfis();
-                                    StringUtils::printBold("");
-                                    notificacao->printNotificacao();
+                                    //StringUtils::printInfo("Perfis Depois");
+                                    //printPerfis();
+                                    //StringUtils::printBold("");
+                                    //notificacao->printNotificacao();
                                     break;
                                 }
                             }
