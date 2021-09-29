@@ -31,10 +31,10 @@ void Servidor::handleNotifications() {
     while(true) {
         sem_wait(&_semaphorNotifications);
         StringUtils::printInfo("Enviando notificacoes aos usuarios conectados");
+        printPerfis();
         for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
-            sendNotificacoes(perfil->_usuario);
+            sendNotificacoes(*perfil);
         }
-        
     }
 }
 
@@ -51,6 +51,7 @@ void Servidor::start() {
         _currentClientFD = _serverSocket->acceptConnection();
         if(_currentClientFD == -1) {
             StringUtils::printDanger("Houve um problema ao conectar com o cliente");
+            sem_post(&_semaphorClientFD);
             continue;
         }
 
@@ -102,7 +103,6 @@ void Servidor::handleClient() {
                 StringUtils::printBold(recebido->serializeAsString());
                 break;
             case Comando::GETNOTIFICATIONS:
-                //sendNotificacoes(recebido->getUsuario());
                 sem_post(&_semaphorNotifications);
                 break;
             case Comando::TESTE:
@@ -134,7 +134,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
     int index;
     Pacote send(Tipo::DATA, Status::OK, "Usuario conectado com sucesso!");
     StringUtils::printInfo("Lidando com a conexao do usuario " + usuario + " no socket " + to_string(socketDescriptor));
-
+    
     for(int i=0; i<_perfis.size(); i++) {
         if(_perfis[i]._usuario == usuario) {
             conectado = true;
@@ -144,6 +144,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
     }
     if(conectado) {
         // Caso esteja com duas conexẽos da ruim
+        sem_wait(&_perfis[index]._semaphorePerfil);
         if(_perfis[index]._socketDescriptors.size() == 2) {
             string message = "Numero maximo de conexoes para o usuario excedido";
             send.setStatus(Status::ERROR);
@@ -153,6 +154,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
         else { // Caso não, adiciona
             _perfis[index]._socketDescriptors.push_back(socketDescriptor);
         }
+        sem_post(&_perfis[index]._semaphorePerfil);
     }
     else {
         Perfil novoPerfil(usuario, socketDescriptor);
@@ -172,6 +174,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
 
 void Servidor::handleDisconnect(string usuario, int socketDescriptor) {
     for(vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        sem_wait(&perfil->_semaphorePerfil);
         if(perfil->_usuario == usuario) {
             for(vector<int>::iterator socket = perfil->_socketDescriptors.begin(); socket != perfil->_socketDescriptors.end(); socket++) {
                 if(*socket == socketDescriptor) {
@@ -179,8 +182,10 @@ void Servidor::handleDisconnect(string usuario, int socketDescriptor) {
                     break;
                 }
             }
+            sem_post(&perfil->_semaphorePerfil);
             break;
         }
+        sem_post(&perfil->_semaphorePerfil);
     }
     StringUtils::printWarning("Desconectando " + usuario + " no socket " +  to_string(socketDescriptor) + ". Motivo: Usuario deslogado");
     _serverSocket->closeSocket(socketDescriptor);
@@ -201,22 +206,27 @@ Pacote Servidor::handleSend(std::string usuario, time_t timestamp, std::string p
 
     std::vector<string> seguidores;
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        sem_wait(&perfil->_semaphorePerfil);
         if(perfil->_usuario == usuario) {
+            StringUtils::printDanger("aaaaaaaa1");
             notificacao._quantidadeSeguidoresAReceber = perfil->_seguidores.size();
             notificacao.printNotificacao();
-            perfil->_notificacoesRecebidas.push_back(notificacao);
-            seguidores = perfil->_seguidores;
-            break;
+            if(notificacao._quantidadeSeguidoresAReceber != 0) {
+                perfil->_notificacoesRecebidas.push_back(notificacao);
+                seguidores = perfil->_seguidores;
+            }
         }
+        sem_post(&perfil->_semaphorePerfil);
     }
 
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        sem_wait(&perfil->_semaphorePerfil);
         for(std::vector<std::string>::iterator seguidor = seguidores.begin(); seguidor != seguidores.end(); seguidor++) {
             if(perfil->_usuario == *seguidor) {
                 perfil->_notificacoesPendentes.push_back(std::make_pair(usuario, notificacao._id));
-                break;
             }
         }
+        sem_post(&perfil->_semaphorePerfil);
     }
     
     return p;
@@ -228,8 +238,9 @@ Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeg
     Pacote send(Tipo::DATA, Status::OK, "Seguindo usuario " + usuarioSeguido);
     StringUtils::printInfo("Usuario " + usuarioSeguidor + " comecou a seguir " + usuarioSeguido);
     // Procura se o usuário está logado já
-    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
-        if(perfil->_usuario == usuarioSeguido) {
+    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) { 
+        if(perfil->_usuario == usuarioSeguido) {    
+            sem_wait(&perfil->_semaphorePerfil);
             existeSeguido = true;
             for(std::vector<std::string>::iterator seguidor = perfil->_seguidores.begin(); seguidor != perfil->_seguidores.end(); seguidor++) {
                 if(*seguidor == usuarioSeguidor) {
@@ -242,6 +253,7 @@ Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeg
             if(!jaSegue) {
                 perfil->_seguidores.push_back(usuarioSeguidor);
             }
+            sem_post(&perfil->_semaphorePerfil);
             break;
         }
     }
@@ -251,7 +263,7 @@ Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeg
         novoPerfil._seguidores.push_back(usuarioSeguidor);
         _perfis.push_back(novoPerfil);
     }
-
+    StringUtils::printBold("aaaaaaaa");
     return send;
 }
 
@@ -262,10 +274,14 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
     p.setPayload("Mensagem enviada com sucesso!");
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         if(perfil->_usuario == from) {
+            sem_wait(&perfil->_semaphorePerfil);
             for(std::vector<Notificacao>::iterator notificacao = perfil->_notificacoesRecebidas.begin(); notificacao != perfil->_notificacoesRecebidas.end(); notificacao++) {
                 if(notificacao->_id == idNotificacao) {
                     Pacote* pacote = new Pacote(Tipo::DATA, notificacao->_timestamp, Comando::NOTIFICATION, from, notificacao->_mensagem);
                     for(std::vector<Perfil>::iterator p = _perfis.begin(); p != _perfis.end(); p++) {
+                        if(p->_usuario == perfil->_usuario)
+                            continue;
+                        sem_wait(&p->_semaphorePerfil);
                         for(std::vector<std::pair<std::string,int>>::iterator par = p->_notificacoesPendentes.begin(); par != p->_notificacoesPendentes.end(); par++) {
                             if(par->second == idNotificacao) {
                                 bool sent = false;
@@ -280,14 +296,15 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
                                 }
                             }
                         }
+                        sem_post(&p->_semaphorePerfil);
                     }
                     if(notificacao->_quantidadeSeguidoresAReceber == 0) {
                         perfil->_notificacoesRecebidas.erase(notificacao);
                         break;
                     }
                 }
-                
             }
+            sem_post(&perfil->_semaphorePerfil);
             break;
         }
     }
@@ -295,15 +312,14 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
 }
 
 
-void Servidor::sendNotificacoes(std::string to) {
+void Servidor::sendNotificacoes(Perfil to) {
     std::vector<std::pair<std::string, int>> notificacoes;
-    for(Perfil& perfil : _perfis) {
-        if(perfil._usuario == to) {
-            for(int i=0; i < perfil._notificacoesPendentes.size(); i++ ) {
-                notificacoes.push_back(std::make_pair(perfil._notificacoesPendentes[i].first, perfil._notificacoesPendentes[i].second));
-            }
-        }
+    sem_wait(&to._semaphorePerfil);
+    for(int i=0; i < to._notificacoesPendentes.size(); i++ ) {
+        notificacoes.push_back(std::make_pair(to._notificacoesPendentes[i].first, to._notificacoesPendentes[i].second));
     }
+    sem_post(&to._semaphorePerfil);
+    
     for(int i=0; i < notificacoes.size(); i++ ) {
         sendNotificacao(notificacoes[i].first, notificacoes[i].second);
     }

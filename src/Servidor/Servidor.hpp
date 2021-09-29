@@ -36,7 +36,7 @@ class Servidor {
         void fillFromFile();
         void notifyAllConnectedClients();
         Pacote sendNotificacao(std::string from, int idNotificacao);
-        void sendNotificacoes(std::string to);
+        void sendNotificacoes(Perfil to);
 
     public:
         Servidor(char* port);
