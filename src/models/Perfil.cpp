@@ -1,20 +1,22 @@
 #include "Perfil.hpp"
 
 Perfil::~Perfil() {
-    
+    sem_destroy(&_semaphorePerfil);
 }
 
 Perfil::Perfil() {
-
+    sem_init(&_semaphorePerfil, 0, 1);
 }
 
 Perfil::Perfil(string usuario) {
     _usuario = usuario;
+    sem_init(&_semaphorePerfil, 0, 1);
 }
 
 Perfil::Perfil(string usuario, int socketDescriptor) {
     _usuario = usuario;
     _socketDescriptors.push_back(socketDescriptor);
+    sem_init(&_semaphorePerfil, 0, 1);
 }
 
 void Perfil::printPerfil() {
