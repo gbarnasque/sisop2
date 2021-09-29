@@ -17,6 +17,7 @@ Servidor::Servidor(char* port) {
     }
     sem_init(&_semaphorClientFD, 0, 1);
     sem_init(&_semaphorNotifications, 0, 0);
+    sem_init(&_semaphorPerfisInclusion, 0, 1);
     _GLOBAL_NOTIFICACAO_ID = 0;
     _saveFileName = "save.csv";
     fillFromFile();
@@ -135,6 +136,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
     Pacote send(Tipo::DATA, Status::OK, "Usuario conectado com sucesso!");
     StringUtils::printInfo("Lidando com a conexao do usuario " + usuario + " no socket " + to_string(socketDescriptor));
     
+    sem_wait(&_semaphorPerfisInclusion);
     for(int i=0; i<_perfis.size(); i++) {
         if(_perfis[i]._usuario == usuario) {
             conectado = true;
@@ -160,7 +162,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
         Perfil novoPerfil(usuario, socketDescriptor);
         _perfis.push_back(novoPerfil);
     }
-
+    sem_post(&_semaphorPerfisInclusion);
     // fecha socket e termina a thread caso usuario tenha sido "deslogado"
     if(send.getStatus() == Status::ERROR) {
         _serverSocket->sendMessage(socketDescriptor, send.serializeAsString().c_str());
@@ -442,9 +444,11 @@ void Servidor::notifyAllConnectedClients() {
     send->setComando(Comando::DISCONNECT);
     send->setPayload("O Servidor esta sendo desligado!");
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        sem_wait(&perfil->_semaphorePerfil);
         for(int i=0; i<perfil->_socketDescriptors.size(); i++) {
             int socket = perfil->_socketDescriptors[i];
             _serverSocket->sendMessage(socket, send->serializeAsString().c_str());
         }
+        sem_post(&perfil->_semaphorePerfil);
     }
 }

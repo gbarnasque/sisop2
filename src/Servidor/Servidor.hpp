@@ -27,7 +27,8 @@ class Servidor {
         int _currentClientFD;
         TCPSocket* _serverSocket;
         sem_t _semaphorClientFD;
-        sem_t  _semaphorNotifications;
+        sem_t _semaphorNotifications;
+        sem_t _semaphorPerfisInclusion;
         std::vector<Perfil> _perfis;
         int _GLOBAL_NOTIFICACAO_ID;
         std::string _saveFileName;
