@@ -27,6 +27,7 @@ class Servidor {
         int _currentClientFD;
         TCPSocket* _serverSocket;
         sem_t _semaphorClientFD;
+        sem_t  _semaphorNotifications;
         std::vector<Perfil> _perfis;
         int _GLOBAL_NOTIFICACAO_ID;
         std::string _saveFileName;
@@ -54,6 +55,8 @@ class Servidor {
         static void help();
         void printPerfis();
 
-
         void gracefullShutDown();
+
+        static void* handleNotificationsStatic(void* context);
+        void handleNotifications();
 };
