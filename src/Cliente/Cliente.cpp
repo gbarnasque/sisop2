@@ -177,9 +177,9 @@ bool Cliente::lineEstaOK(std::string line, Comando c) {
     switch (c)
     {
         case Comando::FOLLOW:
-            return (line.length() > 4 && line.length() < 20 && line[0] == '@' && line != _usuario);
+            return (line.length() > MIN_USER_LEN && line.length() < MAX_USER_LEN && line[0] == '@' && line != _usuario);
         case Comando::SEND:
-            return (line.length() <= 128);
+            return (line.length() <= MAX_TWEET_LEN);
         default:
             return false;
     }
