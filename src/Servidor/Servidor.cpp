@@ -100,7 +100,7 @@ void Servidor::handleClient() {
                 break;
             case Comando::FOLLOW:
                 send = handleFollow(recebido->getPayload(), recebido->getUsuario());
-                StringUtils::printBold(recebido->serializeAsString());
+                //StringUtils::printBold(recebido->serializeAsString());
                 break;
             case Comando::GETNOTIFICATIONS:
                 sem_post(&_semaphorNotifications);
@@ -235,7 +235,6 @@ Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeg
     bool existeSeguido = false;
     bool jaSegue = false;
     Pacote send(Tipo::DATA, Status::OK, "Seguindo usuario " + usuarioSeguido);
-    StringUtils::printInfo("Usuario " + usuarioSeguidor + " comecou a seguir " + usuarioSeguido);
     // Procura se o usuário está logado já
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) { 
         if(perfil->_usuario == usuarioSeguido) {    
@@ -250,6 +249,7 @@ Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeg
                 }
             }
             if(!jaSegue) {
+                StringUtils::printInfo("Usuario " + usuarioSeguidor + " comecou a seguir " + usuarioSeguido);
                 perfil->_seguidores.push_back(usuarioSeguidor);
             }
             sem_post(&perfil->_semaphorePerfil);
@@ -257,10 +257,8 @@ Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeg
         }
     }
     if(!existeSeguido) {
-        Perfil novoPerfil;
-        novoPerfil._usuario = usuarioSeguido;
-        novoPerfil._seguidores.push_back(usuarioSeguidor);
-        _perfis.push_back(novoPerfil);
+        send.setStatus(Status::ERROR);
+        send.setPayload("O perfil " + usuarioSeguido + " nao existe logo nao e possivel segui-lo.");
     }
     return send;
 }
