@@ -16,13 +16,33 @@ Servidor::Servidor(char* port) {
         exit(2);
     }
     sem_init(&_semaphorClientFD, 0, 1);
+    sem_init(&_semaphorNotifications, 0, 0);
     _GLOBAL_NOTIFICACAO_ID = 0;
     _saveFileName = "save.csv";
     fillFromFile();
 }
 
+void* Servidor::handleNotificationsStatic(void* context) {
+    ((Servidor*)context)->handleNotifications();
+    pthread_exit(NULL);
+}
+
+void Servidor::handleNotifications() {
+    while(true) {
+        sem_wait(&_semaphorNotifications);
+        StringUtils::printInfo("Enviando notificacoes aos usuarios conectados");
+        for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+            sendNotificacoes(perfil->_usuario);
+        }
+        
+    }
+}
+
 void Servidor::start() {
     StringUtils::printSuccess("Servidor iniciado");
+
+    pthread_t notificationHandler;
+    pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
     while(true) {
 
         StringUtils::printInfo("Esperando algum cliente conectar... ");
@@ -59,29 +79,31 @@ void Servidor::handleClient() {
     sem_post(&_semaphorClientFD); // Libera a próxima conexão depois de pegar o clientFD
 
     Pacote send;
-    StringUtils::printWarning("Outra Thread criada para lidar com as requisicoes do cliente");
+    StringUtils::printWarning("Thread criada para lidar com as requisicoes do cliente");
 
     memset(buffer, 0, sizeof(buffer));
     while( (n = _serverSocket->receive(clientFD, buffer, MAX_MSG)) > 0 ) {
         Pacote* recebido = new Pacote(buffer);
+        StringUtils::printBold(recebido->serializeAsString());
         switch (recebido->getComando())
         {
             case Comando::CONNECT:
-                send = handleConnect(recebido->getUsuario(), clientFD);       
+                send = handleConnect(recebido->getUsuario(), clientFD);   
                 break;
             case Comando::DISCONNECT:
                 handleDisconnect(recebido->getUsuario(), clientFD);
                 break;
             case Comando::SEND:
-                StringUtils::printBold(recebido->serializeAsString());
                 send = handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
+                sem_post(&_semaphorNotifications);
                 break;
             case Comando::FOLLOW:
                 send = handleFollow(recebido->getPayload(), recebido->getUsuario());
                 StringUtils::printBold(recebido->serializeAsString());
                 break;
             case Comando::GETNOTIFICATIONS:
-                sendNotificacoes(recebido->getUsuario());
+                //sendNotificacoes(recebido->getUsuario());
+                sem_post(&_semaphorNotifications);
                 break;
             case Comando::TESTE:
                 printPerfis();
@@ -166,6 +188,11 @@ void Servidor::handleDisconnect(string usuario, int socketDescriptor) {
 }
 
 Pacote Servidor::handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload) {
+    Pacote p;
+    p.setStatus(Status::OK);
+    p.setComando(Comando::NO);
+    p.setPayload("Mensagem enviada com sucesso!");
+
     Notificacao notificacao;
     notificacao._id = _GLOBAL_NOTIFICACAO_ID++;
     notificacao._timestamp = timestamp;
@@ -191,8 +218,8 @@ Pacote Servidor::handleSend(std::string usuario, time_t timestamp, std::string p
             }
         }
     }
-
-    return sendNotificacao(usuario, notificacao._id);
+    
+    return p;
 }
 
 Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor) {
@@ -352,6 +379,8 @@ Perfil Servidor::getPerfilByUsername(string username){
 void Servidor::gracefullShutDown() {
     saveFile();
     notifyAllConnectedClients();
+    sem_destroy(&_semaphorClientFD);
+    sem_destroy(&_semaphorNotifications);
     if(_serverSocket->closeSocket())
         StringUtils::printSuccess("Servidor desligado com sucesso!");
     exit(0);
