@@ -1,4 +1,11 @@
-CPP = g++
+UNAME := $(shell uname)
+
+ifeq ($(UNAME),Darwin) # macOS
+	CPP = clang++ -std=c++11 -stdlib=libc++
+else
+	CPP = g++
+endif
+
 FLAGS = -Wall -g -Werror -pthread
 UTILS = ./objects/StringUtils.o ./objects/TCPSocket.o ./objects/Pacote.o ./objects/Notificacao.o ./objects/Perfil.o
 OBJSFOLDER = ./objects
