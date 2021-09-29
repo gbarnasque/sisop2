@@ -39,7 +39,12 @@ TCPSocket::TCPSocket(char* serverIp, char* serverPort) {
 bool TCPSocket::bindServer() {
     // https://man7.org/linux/man-pages/man2/bind.2.html
     // On success, zero is returned.  On error, -1 is returned
-    return (bind(_serverFD, (struct sockaddr *) &_serverAddress, sizeof(_serverAddress)) == 0);
+
+    #ifdef __APPLE__
+        return (::bind(_serverFD, (struct sockaddr *) &_serverAddress, sizeof(_serverAddress)) == 0);
+    #else
+        return (bind(_serverFD, (struct sockaddr *) &_serverAddress, sizeof(_serverAddress)) == 0);
+    #endif
 }
 
 // https://man7.org/linux/man-pages/man2/listen.2.html
