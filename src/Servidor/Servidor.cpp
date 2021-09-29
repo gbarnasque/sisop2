@@ -31,7 +31,7 @@ void Servidor::handleNotifications() {
     while(true) {
         sem_wait(&_semaphorNotifications);
         StringUtils::printInfo("Enviando notificacoes aos usuarios conectados");
-        printPerfis();
+        //printPerfis();
         for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
             sendNotificacoes(*perfil);
         }
@@ -164,7 +164,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
     // fecha socket e termina a thread caso usuario tenha sido "deslogado"
     if(send.getStatus() == Status::ERROR) {
         _serverSocket->sendMessage(socketDescriptor, send.serializeAsString().c_str());
-        StringUtils::printDanger("Fechando socket");
+        StringUtils::printDanger("Fechando socket " + socketDescriptor);
         _serverSocket->closeSocket(socketDescriptor);
         pthread_exit(NULL);
     }
@@ -208,7 +208,6 @@ Pacote Servidor::handleSend(std::string usuario, time_t timestamp, std::string p
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         sem_wait(&perfil->_semaphorePerfil);
         if(perfil->_usuario == usuario) {
-            StringUtils::printDanger("aaaaaaaa1");
             notificacao._quantidadeSeguidoresAReceber = perfil->_seguidores.size();
             notificacao.printNotificacao();
             if(notificacao._quantidadeSeguidoresAReceber != 0) {
@@ -263,7 +262,6 @@ Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeg
         novoPerfil._seguidores.push_back(usuarioSeguidor);
         _perfis.push_back(novoPerfil);
     }
-    StringUtils::printBold("aaaaaaaa");
     return send;
 }
 
