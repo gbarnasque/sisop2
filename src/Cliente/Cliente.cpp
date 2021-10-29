@@ -1,6 +1,12 @@
 #include "Cliente.hpp"
 
 Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
+    _currentLine = 1;
+    //_terminal->setMaxRow(ws.ws_row-2);
+    //_terminal->clearScreen();
+    //_terminal->printSeparator(ws.ws_row, ws.ws_col);
+    //sem_init(&_terminalSempahore, 0, 1);
+
     char recvLine[MAX_MSG];
 
     _socket = new TCPSocket(serverIp, serverPort);
@@ -9,6 +15,8 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
         StringUtils::printDanger("Problema ao conectar ao servidor");
         exit(3);
     }
+    _terminal = new Terminal();
+
     std::string usuario(user);
     _usuario = usuario;
     Pacote* enviado = new Pacote(Tipo::COMMAND, time(NULL), Comando::CONNECT, usuario);
@@ -19,10 +27,10 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
 
     Pacote* recebido = new Pacote(recvLine);
     if(recebido->getStatus() == Status::OK) {
-        StringUtils::printSuccess(recebido->getPayload());
+        _terminal->printSuccess(recebido->getPayload(), &_currentLine);
     }
     else {
-        StringUtils::printDanger(recebido->getPayload());
+        _terminal->printDanger(recebido->getPayload(), &_currentLine);
         _socket->closeSocket();
         exit(4);
     }
@@ -32,7 +40,7 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
 }
 
 void Cliente::handleExit() {
-    StringUtils::printWarning("Saindo do aplicativo cliente");
+    _terminal->printWarning("Saindo do aplicativo cliente", &_currentLine);
     Pacote* p = new Pacote();
     p->setComando(Comando::DISCONNECT);
     p->setStatus(Status::OK);
@@ -50,9 +58,8 @@ void* Cliente::receiveNotificationsStatic(void* context){
 //recebe as notificações enviadas pelo servidor dos
 //perfis que o usuário segue e as imprime na tela
 void Cliente::receiveNotifications(){
+    _terminal->printInfo("[RECEIVENOTIFICATIONS] Thread2 iniciada!", &_currentLine);
 
-    StringUtils::printInfo("[RECEIVENOTIFICATIONS] Thread2 iniciada!");
-    
     char rcvLine[MAX_MSG];
     memset(rcvLine, 0, sizeof(rcvLine));
     while(_socket->receive(rcvLine, MAX_MSG) != -1) {
@@ -63,28 +70,29 @@ void Cliente::receiveNotifications(){
                 switch (pacote->getComando())
                 {
                     case Comando::NOTIFICATION:
-                        StringUtils::printWithRandomPrefixColor(pacote->getPayload(), pacote->getUsuario() + ":");
+                        _terminal->printWithRandomPrefixColor(pacote->getPayload(), pacote->getUsuario() + ":", &_currentLine);
                         break;
                     case Comando::DISCONNECT:
-                        StringUtils::printDanger(pacote->getPayload());
+                        _terminal->printDanger(pacote->getPayload(), &_currentLine);
                         handleExit();
                         break;
                     default:
-                        if(pacote->getPayload().size() != 0);
-                            StringUtils::printSuccess(pacote->getPayload());
+                        if(pacote->getPayload().size() != 0) {
+                            _terminal->printSuccess(pacote->getPayload(), &_currentLine);
+                        }
                         break;
                 }
             } 
             else {
                 if(pacote->getPayload().size() != 0);
-                    StringUtils::printDanger(pacote->getPayload());
+                    _terminal->printDanger(pacote->getPayload(), &_currentLine);
             }
         }
         
         memset(rcvLine, 0, sizeof(rcvLine));
     }
     _socket->closeSocket();
-    StringUtils::printDanger("O servidor encerrou a conexão");
+    _terminal->printDanger("O servidor encerrou a conexão", &_currentLine);
     exit(4);
 }
 
@@ -94,7 +102,7 @@ void* Cliente::ProcessKeyboardInputStatic(void* context){
 }
 
 void Cliente::ProcessKeyboardInput(){
-    StringUtils::printInfo("[PROCESSKEYBOARDINPUT] Esperando pelo input do usuario...");
+    _terminal->printInfo("[PROCESSKEYBOARDINPUT] Esperando pelo input do usuario...", &_currentLine);
     while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
         Pacote* send;
 
@@ -102,17 +110,19 @@ void Cliente::ProcessKeyboardInput(){
         std::string sendLineString(sendLine);
         Comando comando = getComandoFromLine(sendLineString);
         sendLineString = removeComandoFromLine(sendLineString);
+
+        _terminal->clearCommandFromTerminal();
         switch (comando)
         {
             case Comando::FOLLOW:
                 if(!lineEstaOK(sendLineString, comando)) {
-                    StringUtils::printDanger("O perfil a seguir deve conter entre 4 e 20 caracteres e comecar com @. E, lembre-se, voce nao pode se seguir");
+                    _terminal->printDanger("O perfil a seguir deve conter entre 4 e 20 caracteres e comecar com @. E, lembre-se, voce nao pode se seguir", &_currentLine);
                     break;
                 }
 
             case Comando::SEND:
                 if(!lineEstaOK(sendLineString, comando)) {
-                    StringUtils::printDanger("Sua mensagem possui mais do que os 128 caracteres permitidos");
+                    _terminal->printDanger("Sua mensagem possui mais do que os 128 caracteres permitidos", &_currentLine);
                     break;
                 }
             case Comando::TESTE:    
@@ -122,11 +132,11 @@ void Cliente::ProcessKeyboardInput(){
             
             case Comando::NO:
             default:
-                StringUtils::printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"");
+                _terminal->printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"", &_currentLine);
                 break;
         }
         memset(sendLine, 0, sizeof(sendLine));
-        StringUtils::printInfo("Esperando pelo input do usuario...");
+        _terminal->printInfo("Esperando pelo input do usuario...", &_currentLine);
     }
     handleExit();
 }
@@ -138,9 +148,8 @@ void Cliente::interact() {
 
     pthread_t thread1, thread2;
 
-
-    pthread_create(&thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
-    pthread_create(&thread2, NULL, Cliente::receiveNotificationsStatic, this);
+    pthread_create(&thread1, NULL, Cliente::receiveNotificationsStatic, this);
+    pthread_create(&thread2, NULL, Cliente::ProcessKeyboardInputStatic, this);
 
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);

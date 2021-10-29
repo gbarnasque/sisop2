@@ -10,11 +10,13 @@
 #include "../StringUtils/StringUtils.hpp"
 #include "../TCPSocket/TCPSocket.hpp"
 #include "../models/Pacote.hpp"
+#include "../TerminalUtils/Terminal.hpp"
 
 #define MAX_MSG 1024
 #define MAX_TWEET_LEN 128
 #define MIN_USER_LEN 4
 #define MAX_USER_LEN 20
+
 
 class Cliente {
     private:
@@ -22,6 +24,8 @@ class Cliente {
         TCPSocket* _socket;
         std::string _usuario;
         std::vector<Pacote> _pacotes;
+        Terminal* _terminal;
+        int _currentLine;
 
     public:
         Cliente(char* serverIp, char* serverPort, char* user);        

@@ -20,6 +20,18 @@
 
 using namespace std;
 
+enum PrintType {
+    INFO,
+    SUCCESS,
+    DANGER,
+    WARNING,
+    LINE,
+    BOLD,
+    PRINT_WITH_COLOR,
+    PRINT_WITH_PREFIX,
+    PRINT_WITH_PREFIX_COLOR
+};
+
 enum Color {
     RED,
     GREEN,

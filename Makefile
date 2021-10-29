@@ -7,7 +7,7 @@ else
 endif
 
 FLAGS = -Wall -g -Werror -pthread
-UTILS = ./objects/StringUtils.o ./objects/TCPSocket.o ./objects/Pacote.o ./objects/Notificacao.o ./objects/Perfil.o
+UTILS = ./objects/StringUtils.o ./objects/TCPSocket.o ./objects/Pacote.o ./objects/Notificacao.o ./objects/Perfil.o ./objects/Terminal.o
 OBJSFOLDER = ./objects
 
 all: ${OBJSFOLDER} app_cliente app_servidor 
@@ -53,3 +53,6 @@ ${OBJSFOLDER}/Perfil.o: ${OBJSFOLDER}/Notificacao.o src/models/Perfil.cpp src/mo
 
 ${OBJSFOLDER}/Notificacao.o: src/models/Notificacao.cpp src/models/Notificacao.hpp
 	${CPP} -c src/models/Notificacao.cpp -o ${OBJSFOLDER}/Notificacao.o
+
+${OBJSFOLDER}/Terminal.o: src/TerminalUtils/Terminal.cpp src/TerminalUtils/Terminal.hpp
+	${CPP} -c src/TerminalUtils/Terminal.cpp -o ${OBJSFOLDER}/Terminal.o
