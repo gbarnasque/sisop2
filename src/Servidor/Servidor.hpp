@@ -16,6 +16,8 @@
 #include "../models/Perfil.hpp"
 #include "../models/Notificacao.hpp"
 
+#define DEFAULT_IP "0.0.0.0" 
+
 typedef void * (*THREADFUNCPTR)(void *);
 
 #define MAX_MSG 1024
@@ -33,14 +35,22 @@ class Servidor {
         int _GLOBAL_NOTIFICACAO_ID;
         std::string _saveFileName;
 
+        bool _isPrimary;
+        TCPSocket* _primaryServerSocket;
+        vector<pair<pid_t, int>> _poolServidores; // PID e FD do Servidor
+        sem_t _semaphorPool;
+
         void saveFile();
         void fillFromFile();
         void notifyAllConnectedClients();
-        Pacote sendNotificacao(std::string from, int idNotificacao);
+        void sendNotificacao(std::string from, int idNotificacao);
         void sendNotificacoes(Perfil to);
 
+        void notifyClientsToUpdateServer();
+        void sendPacoteToAllClients(Pacote p);
+
     public:
-        Servidor(char* port);
+        Servidor(char* port, char* primaryServerPort);
         void start();
         void info();
         void handleClient();
@@ -60,4 +70,16 @@ class Servidor {
 
         static void* handleNotificationsStatic(void* context);
         void handleNotifications();
+
+        static void* handleHealthCheckStatic(void* context);
+        void handleHealthCheck();
+
+        void updatePool(std::string serverPID, std::string serverFD);
+        void notifyServersToUpdatePool(std::string serverPID, std::string serverFD);
+        void sendPacoteToAllServers(Pacote p);
+
+        static void* handleServerNotificationsStatic(void* context);
+        void handleServerNotifications();
+
+        void printPool();
 };

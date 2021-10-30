@@ -31,6 +31,7 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
     _socket->sendMessage(enviado->serializeAsString().c_str());
 }
 
+
 void Cliente::handleExit() {
     StringUtils::printWarning("Saindo do aplicativo cliente");
     Pacote* p = new Pacote();
@@ -68,6 +69,10 @@ void Cliente::receiveNotifications(){
                     case Comando::DISCONNECT:
                         StringUtils::printDanger(pacote->getPayload());
                         handleExit();
+                        break;
+                    case Comando::UPDATECONNECTION:
+                        _socket->updateServerFD(pacote->getPayload().c_str());
+                        StringUtils::printInfo("Updated connection to server with FD = " + pacote->getPayload());
                         break;
                     default:
                         if(pacote->getPayload().size() != 0);

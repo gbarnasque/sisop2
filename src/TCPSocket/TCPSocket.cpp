@@ -78,6 +78,7 @@ int TCPSocket::sendMessage(const char* message) {
     return numberOfBytes;
 }
 int TCPSocket::sendMessage(int clientFD, char* message) {
+    //StringUtils::printDanger("Enviando mensagem");
     size_t numberOfBytes = send(clientFD, message, strlen(message), 0);
     //StringUtils::printInfo(to_string(numberOfBytes) + " bytes enviados para o socket " + to_string(clientFD));
     return numberOfBytes;
@@ -109,6 +110,19 @@ bool TCPSocket::closeSocket() {
 bool TCPSocket::closeSocket(int clientFD) {
     return (close(clientFD) == 0);
 }
+
+void TCPSocket::updateServerFD(int serverFD) {
+    _serverFD = serverFD;
+}
+void TCPSocket::updateServerFD(const char* serverFD) {
+    updateServerFD(atoi(serverFD));
+}
+
+int TCPSocket::getServerFD() {
+    return _serverFD;
+}
+
+
 
 void TCPSocket::printSocketInfo() {
     char ip[INET_ADDRSTRLEN];

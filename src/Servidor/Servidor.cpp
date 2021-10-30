@@ -5,7 +5,7 @@
 // https://www.cs.dartmouth.edu/~campbell/cs60/socketprogramming.html
 
 
-Servidor::Servidor(char* port) {
+Servidor::Servidor(char* port, char* primaryServerPort) {
     _serverSocket = new TCPSocket(NULL, port);
     if(!_serverSocket->bindServer()) {
         StringUtils::printDanger("Erro ao realizar o bind do socket do servidor");
@@ -21,6 +21,76 @@ Servidor::Servidor(char* port) {
     _GLOBAL_NOTIFICACAO_ID = 0;
     _saveFileName = "save.csv";
     fillFromFile();
+
+    
+    _primaryServerSocket = NULL;
+    _isPrimary = true;
+    sem_init(&_semaphorPool, 0, 1);
+    if(strcmp(primaryServerPort, "0") != 0) {
+        _primaryServerSocket = new TCPSocket(DEFAULT_IP, primaryServerPort);
+        if(!_primaryServerSocket->connectSocket()) {
+            StringUtils::printDanger("Problema ao conectar ao servidor");
+            exit(3);
+        }
+        
+        _isPrimary = false;
+
+        pthread_t serverNotificationsHandler;
+        pthread_create(&serverNotificationsHandler, NULL, &Servidor::handleServerNotificationsStatic, this);
+
+
+        Pacote p;
+        p.setComando(Comando::CONNECTSERVERTOPOOL);
+        p.setUsuario(to_string(getpid()));
+        p.setPayload(to_string(_serverSocket->getServerFD()));
+        _primaryServerSocket->sendMessage(p.serializeAsCharPointer());
+
+        char recvLine[MAX_MSG];
+        memset(recvLine, 0, sizeof(recvLine));
+        _primaryServerSocket->receive(recvLine, MAX_MSG);
+
+        Pacote* recebido = new Pacote(recvLine);
+        if(recebido->getStatus() == Status::ERROR) {
+            StringUtils::printDanger(recebido->getPayload());
+            _primaryServerSocket->closeSocket();
+            exit(4);
+        }
+        StringUtils::printSuccess("Conectado no servidor com sucesso!");
+    }
+}
+void* Servidor::handleServerNotificationsStatic(void* context) {
+    ((Servidor*)context)->handleServerNotifications();
+    pthread_exit(NULL);
+}
+void Servidor::handleServerNotifications() {
+    while(true) {
+        char rcvLine[MAX_MSG];
+        memset(rcvLine, 0, sizeof(rcvLine));
+        while(_serverSocket->receive(rcvLine, MAX_MSG) != -1) {
+            std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
+
+            for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
+                if(pacote->getStatus() == Status::OK) {
+                    Pacote send;
+                    switch(pacote->getComando()) {
+                        case Comando::UPDATEPOOLINSERT:
+                            sem_wait(&_semaphorPool);
+                            updatePool(pacote->getUsuario(), pacote->getPayload());
+                            sem_post(&_semaphorPool);
+                            send.setStatus(Status::OK);
+                            send.setUsuario(to_string(getpid()));
+                            _primaryServerSocket->sendMessage(send.serializeAsCharPointer());
+                            break;
+                        
+                        default:
+                            break;
+                    }
+                }
+                else if(pacote->getPayload().size() != 0)
+                    StringUtils::printDanger(pacote->getPayload());
+            }
+        }
+    }
 }
 
 void* Servidor::handleNotificationsStatic(void* context) {
@@ -44,6 +114,10 @@ void Servidor::start() {
 
     pthread_t notificationHandler;
     pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
+    if(!_isPrimary){
+        pthread_t healthCheckHandler;
+        pthread_create(&healthCheckHandler, NULL, &Servidor::handleHealthCheckStatic, this);
+    }
     while(true) {
 
         StringUtils::printInfo("Esperando algum cliente conectar... ");
@@ -106,8 +180,17 @@ void Servidor::handleClient() {
             case Comando::GETNOTIFICATIONS:
                 sem_post(&_semaphorNotifications);
                 break;
+            case Comando::CONNECTSERVERTOPOOL:
+                sem_wait(&_semaphorPool);
+                notifyServersToUpdatePool(recebido->getUsuario(), to_string(clientFD));
+                updatePool(recebido->getUsuario(), to_string(clientFD));
+                sem_post(&_semaphorPool);
+                break;
+            case Comando::UPDATEPOOLCHECK:
+                if(recebido->getStatus() == Status::OK)
+                    StringUtils::printSuccess("Pool atualizado no servidor:" + recebido->getUsuario());
             case Comando::TESTE:
-                printPerfis();
+                printPool();
                 break;
             default:
                 break;
@@ -115,7 +198,7 @@ void Servidor::handleClient() {
         
         if(recebido->getComando() != Comando::GETNOTIFICATIONS) {
             if(_serverSocket->sendMessage(clientFD, send.serializeAsString().c_str()) == -1)
-                StringUtils::printDanger("erro ao enviar a mensagem de volta");
+                StringUtils::printDanger("Erro ao enviar a mensagem de volta");
         }
         
         memset(buffer, 0, sizeof(buffer));
@@ -265,11 +348,7 @@ Pacote Servidor::handleFollow(std::string usuarioSeguido, std::string usuarioSeg
     return send;
 }
 
-Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
-    Pacote p;
-    p.setStatus(Status::OK);
-    p.setComando(Comando::NO);
-    p.setPayload("Mensagem enviada com sucesso!");
+void Servidor::sendNotificacao(std::string from, int idNotificacao) {
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         if(perfil->_usuario == from) {
             sem_wait(&perfil->_semaphorePerfil);
@@ -306,9 +385,7 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
             break;
         }
     }
-    return p;
 }
-
 
 void Servidor::sendNotificacoes(Perfil to) {
     std::vector<std::pair<std::string, int>> notificacoes;
@@ -323,7 +400,61 @@ void Servidor::sendNotificacoes(Perfil to) {
     }
 }
 
+void Servidor::notifyClientsToUpdateServer() {
+    Pacote pacote;
+    pacote.setComando(Comando::UPDATECONNECTION);
+    pacote.setStatus(Status::OK);
+    pacote.setPayload(to_string(_serverSocket->getServerFD()));
 
+    sendPacoteToAllClients(pacote);
+}
+
+void Servidor::sendPacoteToAllClients(Pacote pacote) {
+    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        sem_wait(&perfil->_semaphorePerfil);
+        for(int i=0; i<perfil->_socketDescriptors.size(); i++) {
+            _serverSocket->sendMessage(perfil->_socketDescriptors[i], pacote.serializeAsString().c_str());
+        }
+        sem_post(&perfil->_semaphorePerfil);
+    }
+}
+
+void* Servidor::handleHealthCheckStatic(void* context) {
+    ((Servidor*)context)->handleHealthCheck();
+    pthread_exit(NULL);
+}
+void Servidor::handleHealthCheck() {
+    /*Pacote p;
+    p.setStatus(Status::OK);
+
+    _primaryServerSocket->sendMessage()*/
+}
+
+void Servidor::updatePool(string serverPID, string serverFD) {
+    StringUtils::printWarning("Atualizando Pool");
+    _poolServidores.push_back(std::make_pair((pid_t) atoi(serverPID.c_str()), atoi(serverFD.c_str())));
+    printPool();
+}
+
+void Servidor::notifyServersToUpdatePool(string serverPID, string serverFD) {
+    Pacote pacote;
+    pacote.setComando(Comando::UPDATEPOOLINSERT);
+    pacote.setStatus(Status::OK);
+    pacote.setUsuario(serverPID);
+    pacote.setPayload(serverFD);
+
+    sendPacoteToAllServers(pacote);
+    //sem_wait(&_semaphorUpdatingPool);
+}
+
+void Servidor::sendPacoteToAllServers(Pacote p) {
+    StringUtils::printInfo("Notificando servidores de atualização do pool");
+    for(int i=0; i<_poolServidores.size(); i++) {
+        StringUtils::printWarning(to_string(_poolServidores[i].second));
+        if(_serverSocket->sendMessage(_poolServidores[i].second, p.serializeAsCharPointer()) == -1)
+                StringUtils::printDanger("Erro ao enviar a atualizacao de pool");
+    }
+}
 
 
 void Servidor::info() {
@@ -358,12 +489,12 @@ bool Servidor::checkStartupParameters(int argc, char** argv) {
 void Servidor::help() {
     cout << endl;
     StringUtils::printBold("USAGE");
-    puts("./app_servidor [-h | --help] <PORTA>");
-    puts("Onde <PORTA> esta no intervalo [1, 65535]");
+    puts("./app_servidor [-h | --help] <PORTA> [PORTA_RM_PRIMARIO]");
+    puts("Onde <PORTA> e [PORTA_RM_PRIMARIO] estao no intervalo [1, 65535]");
     cout << endl;
 
     StringUtils::printBold("EXAMPLES");
-    puts("./app_servidor 8080");
+    puts("./app_servidor 8080 8081");
     puts("./app_servidor 8888");
     puts("./app_servidor -h");
     puts("./app_servidor --help");
@@ -450,5 +581,12 @@ void Servidor::notifyAllConnectedClients() {
             _serverSocket->sendMessage(socket, send->serializeAsString().c_str());
         }
         sem_post(&perfil->_semaphorePerfil);
+    }
+}
+
+void Servidor::printPool() {
+    StringUtils::printInfo("Pool atual:");
+    for(int i=0; i<_poolServidores.size(); i++) {
+        StringUtils::printWithPrefix("FD: " + to_string(_poolServidores[i].second),"PID: " + to_string(_poolServidores[i].first), Color::MAGENTA);
     }
 }

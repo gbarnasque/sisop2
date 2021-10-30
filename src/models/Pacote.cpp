@@ -129,20 +129,10 @@ std::string Pacote::generateString(string identificador, string s, bool end) {
 } 
 
 char* Pacote::serializeAsCharPointer() {
-    std::string pacoteSerializadoString;
+    std::string pacoteSerializadoString = serializeAsString();
     char* pacoteSerializado;
-    
-    pacoteSerializadoString.append("{");
-    pacoteSerializadoString.append(generateInt<Tipo>("tipo", _tipo));
-    pacoteSerializadoString.append(generateInt<Status>("status", _status));
-    pacoteSerializadoString.append(generateInt<time_t>("timestamp", _timestamp));
-    pacoteSerializadoString.append(generateInt<Comando>("comando", _comando));
-    pacoteSerializadoString.append(generateString("usuario", _usuario));
-    pacoteSerializadoString.append(generateString("payload", _payload, true));
-    pacoteSerializadoString.append("}");
 
     pacoteSerializado = (char*)malloc(sizeof(char)*pacoteSerializadoString.length()+1);
-    
     strcpy(pacoteSerializado, pacoteSerializadoString.c_str());
 
     return pacoteSerializado;

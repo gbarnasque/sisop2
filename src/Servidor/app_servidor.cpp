@@ -17,7 +17,13 @@ int main(int argc, char** argv) {
 
     signal(SIGINT, handleSignal);
 
-    Servidor* s = new Servidor(argv[1]);
+    Servidor* s;
+    char defaultPort[2] = "0";
+    if(argc == 2)
+        s = new Servidor(argv[1], defaultPort);
+    else if(argc == 3)
+        s = new Servidor(argv[1], argv[2]);
+    
     Signalhandler = s;
     
     s->info();

@@ -24,7 +24,7 @@ class Cliente {
         std::vector<Pacote> _pacotes;
 
     public:
-        Cliente(char* serverIp, char* serverPort, char* user);        
+        Cliente(char* serverIp, char* serverPort, char* usuario);        
         void handleExit(); 
 
         void interact();

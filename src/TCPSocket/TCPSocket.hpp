@@ -35,5 +35,9 @@ class TCPSocket {
         bool closeSocket(); 
         bool closeSocket(int clientFD);
 
+        void updateServerFD(int serverFD);
+        void updateServerFD(const char* serverFD);
+        int getServerFD();
+
         void printSocketInfo();
 };
