@@ -82,4 +82,11 @@ class Servidor {
         void handleServerNotifications();
 
         void printPool();
+
+
+
+        static void* ProcessKeyboardInputStatic(void* context);
+        void ProcessKeyboardInput();
+        Comando getComandoFromLine(std::string line);
+        std::string removeComandoFromLine(std::string line);
 };

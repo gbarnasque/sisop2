@@ -27,7 +27,10 @@ Servidor::Servidor(char* port, char* primaryServerPort) {
     _isPrimary = true;
     sem_init(&_semaphorPool, 0, 1);
     if(strcmp(primaryServerPort, "0") != 0) {
-        _primaryServerSocket = new TCPSocket(DEFAULT_IP, primaryServerPort);
+        char* defaultIp;
+        defaultIp = (char*) malloc((sizeof(char)*strlen(DEFAULT_IP)) + 1);
+        strcpy(defaultIp, DEFAULT_IP);
+        _primaryServerSocket = new TCPSocket(defaultIp, primaryServerPort);
         if(!_primaryServerSocket->connectSocket()) {
             StringUtils::printDanger("Problema ao conectar ao servidor");
             exit(3);
@@ -35,17 +38,13 @@ Servidor::Servidor(char* port, char* primaryServerPort) {
         
         _isPrimary = false;
 
-        pthread_t serverNotificationsHandler;
-        pthread_create(&serverNotificationsHandler, NULL, &Servidor::handleServerNotificationsStatic, this);
-
-
         Pacote p;
         p.setComando(Comando::CONNECTSERVERTOPOOL);
         p.setUsuario(to_string(getpid()));
         p.setPayload(to_string(_serverSocket->getServerFD()));
         _primaryServerSocket->sendMessage(p.serializeAsCharPointer());
 
-        char recvLine[MAX_MSG];
+        /*char recvLine[MAX_MSG];
         memset(recvLine, 0, sizeof(recvLine));
         _primaryServerSocket->receive(recvLine, MAX_MSG);
 
@@ -54,19 +53,25 @@ Servidor::Servidor(char* port, char* primaryServerPort) {
             StringUtils::printDanger(recebido->getPayload());
             _primaryServerSocket->closeSocket();
             exit(4);
-        }
+        }*/
+
+        pthread_t serverNotificationsHandler;
+        pthread_create(&serverNotificationsHandler, NULL, &Servidor::handleServerNotificationsStatic, this);
+
         StringUtils::printSuccess("Conectado no servidor com sucesso!");
     }
+    pthread_t serverKeyboardHandler;
+    pthread_create(&serverKeyboardHandler, NULL, &Servidor::ProcessKeyboardInputStatic, this);
 }
 void* Servidor::handleServerNotificationsStatic(void* context) {
     ((Servidor*)context)->handleServerNotifications();
     pthread_exit(NULL);
 }
 void Servidor::handleServerNotifications() {
+    char rcvLine[MAX_MSG];
     while(true) {
-        char rcvLine[MAX_MSG];
         memset(rcvLine, 0, sizeof(rcvLine));
-        while(_serverSocket->receive(rcvLine, MAX_MSG) != -1) {
+        while(_primaryServerSocket->receive(rcvLine, MAX_MSG) != -1) {
             std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
 
             for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
@@ -78,18 +83,50 @@ void Servidor::handleServerNotifications() {
                             updatePool(pacote->getUsuario(), pacote->getPayload());
                             sem_post(&_semaphorPool);
                             send.setStatus(Status::OK);
+                            send.setComando(Comando::UPDATEPOOLCHECK);
                             send.setUsuario(to_string(getpid()));
                             _primaryServerSocket->sendMessage(send.serializeAsCharPointer());
                             break;
                         
                         default:
+                            StringUtils::printInfo("Default case");
                             break;
                     }
                 }
                 else if(pacote->getPayload().size() != 0)
                     StringUtils::printDanger(pacote->getPayload());
+                StringUtils::printInfo("oi");
             }
         }
+    }
+}
+
+void* Servidor::ProcessKeyboardInputStatic(void* context) {
+    ((Servidor*)context)->ProcessKeyboardInput();
+    pthread_exit(NULL);
+}
+
+void Servidor::ProcessKeyboardInput(){
+    char line[MAX_MSG];
+    while(fgets(line, MAX_MSG, stdin) != NULL) {
+        Pacote* send;
+
+        StringUtils::removeNewLineAtEnd(line);
+        std::string serverFD(line);
+        Comando comando = getComandoFromLine(line);
+        serverFD = removeComandoFromLine(serverFD);
+        send = new Pacote(Tipo::COMMAND, time(NULL), comando, to_string(getpid()), "");
+        switch (comando)
+        {
+            case Comando::TESTE:
+                _serverSocket->sendMessage(atoi(serverFD.c_str()), send->serializeAsCharPointer());
+                break;
+            default:
+                StringUtils::printWarning("Comando nao reconhecido.");
+                break;
+        }
+        memset(line, 0, sizeof(line));
+        StringUtils::printInfo("Esperando pelo input do usuario...");
     }
 }
 
@@ -156,25 +193,28 @@ void Servidor::handleClient() {
 
     Pacote send;
     StringUtils::printWarning("Thread criada para lidar com as requisicoes do cliente");
-
     memset(buffer, 0, sizeof(buffer));
     while( (n = _serverSocket->receive(clientFD, buffer, MAX_MSG)) > 0 ) {
+        bool sendCheck = false;
         Pacote* recebido = new Pacote(buffer);
         StringUtils::printBold(recebido->serializeAsString());
         switch (recebido->getComando())
         {
             case Comando::CONNECT:
-                send = handleConnect(recebido->getUsuario(), clientFD);   
+                send = handleConnect(recebido->getUsuario(), clientFD);
+                sendCheck = true;  
                 break;
             case Comando::DISCONNECT:
                 handleDisconnect(recebido->getUsuario(), clientFD);
                 break;
             case Comando::SEND:
                 send = handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
+                sendCheck = true;
                 sem_post(&_semaphorNotifications);
                 break;
             case Comando::FOLLOW:
                 send = handleFollow(recebido->getPayload(), recebido->getUsuario());
+                sendCheck = true;
                 //StringUtils::printBold(recebido->serializeAsString());
                 break;
             case Comando::GETNOTIFICATIONS:
@@ -188,7 +228,7 @@ void Servidor::handleClient() {
                 break;
             case Comando::UPDATEPOOLCHECK:
                 if(recebido->getStatus() == Status::OK)
-                    StringUtils::printSuccess("Pool atualizado no servidor:" + recebido->getUsuario());
+                    StringUtils::printSuccess("Pool atualizado no servidor de PID = " + recebido->getUsuario());
             case Comando::TESTE:
                 printPool();
                 break;
@@ -196,7 +236,7 @@ void Servidor::handleClient() {
                 break;
         }
         
-        if(recebido->getComando() != Comando::GETNOTIFICATIONS) {
+        if(sendCheck) {
             if(_serverSocket->sendMessage(clientFD, send.serializeAsString().c_str()) == -1)
                 StringUtils::printDanger("Erro ao enviar a mensagem de volta");
         }
@@ -522,12 +562,15 @@ Perfil Servidor::getPerfilByUsername(string username){
 }
 
 void Servidor::gracefullShutDown() {
-    saveFile();
-    notifyAllConnectedClients();
-    sem_destroy(&_semaphorClientFD);
-    sem_destroy(&_semaphorNotifications);
+    if(_isPrimary) {
+        saveFile();
+        notifyAllConnectedClients();
+    }
+    
     if(_serverSocket->closeSocket())
         StringUtils::printSuccess("Servidor desligado com sucesso!");
+    sem_destroy(&_semaphorClientFD);
+    sem_destroy(&_semaphorNotifications);
     exit(0);
 }
 
@@ -589,4 +632,30 @@ void Servidor::printPool() {
     for(int i=0; i<_poolServidores.size(); i++) {
         StringUtils::printWithPrefix("FD: " + to_string(_poolServidores[i].second),"PID: " + to_string(_poolServidores[i].first), Color::MAGENTA);
     }
+}
+
+Comando Servidor::getComandoFromLine(std::string line) {
+    size_t espaco = line.find_first_of(" ");
+    if(espaco == std::string::npos) {
+        return Comando::NO;
+    }
+    std::string comando = line.substr(0, espaco);
+    if(comando == "SEND") {
+        return Comando::SEND;
+    }
+    else if(comando == "FOLLOW") {
+        return Comando::FOLLOW;
+    }
+    else if(comando == "TESTE") {
+        return Comando::TESTE;
+    }
+    else {
+        return Comando::NO;
+    }
+}
+
+std::string Servidor::removeComandoFromLine(std::string line) {
+    size_t espaco = line.find_first_of(" ");
+    std::string newLine = line.substr(espaco+1);
+    return newLine;
 }
