@@ -8,7 +8,9 @@
 
 enum Tipo {
     DATA,
-    COMMAND
+    COMMAND,
+    CLIENTE,
+    SERVIDOR
 };
 
 enum Comando {
@@ -72,4 +74,6 @@ class Pacote {
         void deserialize(T pacoteSerializado);
 
         static std::vector<Pacote> getMultiplosPacotes(const char* pacotesSerializados);
+        static Comando getComandoFromLine(std::string line);
+        static std::string removeComandoFromLine(std::string line);
 };

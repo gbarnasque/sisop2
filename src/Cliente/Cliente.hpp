@@ -34,8 +34,6 @@ class Cliente {
         static void* ProcessKeyboardInputStatic(void* context);
         static void* receiveNotificationsStatic(void* context);
         
-        Comando getComandoFromLine(std::string line);
-        std::string removeComandoFromLine(std::string line);
         bool lineEstaOK(std::string line, Comando c);
 
         static void help();

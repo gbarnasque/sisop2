@@ -11,7 +11,7 @@ Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
     }
     std::string usuario(user);
     _usuario = usuario;
-    Pacote* enviado = new Pacote(Tipo::COMMAND, time(NULL), Comando::CONNECT, usuario);
+    Pacote* enviado = new Pacote(Tipo::CLIENTE, time(NULL), Comando::CONNECT, usuario);
     _socket->sendMessage(enviado->serializeAsString().c_str());
     
     memset(recvLine, 0, sizeof(recvLine));
@@ -100,8 +100,8 @@ void Cliente::ProcessKeyboardInput(){
 
         StringUtils::removeNewLineAtEnd(sendLine);
         std::string sendLineString(sendLine);
-        Comando comando = getComandoFromLine(sendLineString);
-        sendLineString = removeComandoFromLine(sendLineString);
+        Comando comando = Pacote::getComandoFromLine(sendLineString);
+        sendLineString = Pacote::removeComandoFromLine(sendLineString);
         switch (comando)
         {
             case Comando::FOLLOW:
@@ -138,39 +138,11 @@ void Cliente::interact() {
 
     pthread_t thread1, thread2;
 
-
     pthread_create(&thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
     pthread_create(&thread2, NULL, Cliente::receiveNotificationsStatic, this);
 
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
-}
-
-
-Comando Cliente::getComandoFromLine(std::string line) {
-    size_t espaco = line.find_first_of(" ");
-    if(espaco == std::string::npos) {
-        return Comando::NO;
-    }
-    std::string comando = line.substr(0, espaco);
-    if(comando == "SEND") {
-        return Comando::SEND;
-    }
-    else if(comando == "FOLLOW") {
-        return Comando::FOLLOW;
-    }
-    else if(comando == "TESTE") {
-        return Comando::TESTE;
-    }
-    else {
-        return Comando::NO;
-    }
-}
-
-std::string Cliente::removeComandoFromLine(std::string line) {
-    size_t espaco = line.find_first_of(" ");
-    std::string newLine = line.substr(espaco+1);
-    return newLine;
 }
 
 bool Cliente::lineEstaOK(std::string line, Comando c) {

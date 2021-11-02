@@ -39,8 +39,12 @@ class Servidor {
         Pacote sendNotificacao(std::string from, int idNotificacao);
         void sendNotificacoes(Perfil to);
 
+        TCPSocket* _primaryServerSocket;
+        bool _isPrimary;
+
     public:
         Servidor(char* port);
+        Servidor(char* port, char* primaryIp, char* primaryPort);
         void start();
         void info();
         void handleClient();
@@ -60,4 +64,12 @@ class Servidor {
 
         static void* handleNotificationsStatic(void* context);
         void handleNotifications();
+
+
+        static void* ProcessKeyboardInputStatic(void* context);
+        void ProcessKeyboardInput();
+
+        static void* handleServerStatic(void* context);
+        void handleServer();
+        Pacote handleServerConnect(std::string pid, std::string payload);
 };

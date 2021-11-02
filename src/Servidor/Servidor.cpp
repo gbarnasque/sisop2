@@ -21,6 +21,76 @@ Servidor::Servidor(char* port) {
     _GLOBAL_NOTIFICACAO_ID = 0;
     _saveFileName = "save.csv";
     fillFromFile();
+
+    pthread_t keyboardThead;
+    pthread_create(&keyboardThead, NULL, &Servidor::ProcessKeyboardInputStatic, this);
+    _isPrimary = true;
+}
+
+Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
+    _serverSocket = new TCPSocket(NULL, port);
+    if(!_serverSocket->bindServer()) {
+        StringUtils::printDanger("Erro ao realizar o bind do socket do servidor");
+        exit(1);
+    }
+    if(!_serverSocket->startListen(MAX_CLIENTS)) {
+        StringUtils::printDanger("Erro ao comecar o listen do servidor");
+        exit(2);
+    }
+    sem_init(&_semaphorClientFD, 0, 1);
+    sem_init(&_semaphorNotifications, 0, 0);
+    sem_init(&_semaphorPerfisInclusion, 0, 1);
+    _GLOBAL_NOTIFICACAO_ID = 0;
+    _saveFileName = "save.csv";
+    //fillFromFile();
+
+    pthread_t keyboardThead;
+    pthread_create(&keyboardThead, NULL, &Servidor::ProcessKeyboardInputStatic, this);
+
+    _primaryServerSocket = new TCPSocket(primaryIp, primaryPort);
+
+    if(!_primaryServerSocket->connectSocket()) {
+        StringUtils::printDanger("Problema ao conectar ao servidor");
+        exit(3);
+    }
+
+    std::string sendPayload("0.0.0.0:");
+    sendPayload.append(port);
+    Pacote* enviado = new Pacote(Tipo::SERVIDOR, time(NULL), Comando::CONNECT, to_string(getpid()), sendPayload);
+    _primaryServerSocket->sendMessage(enviado->serializeAsString().c_str());
+    char recvLine[MAX_MSG];
+    memset(recvLine, 0, sizeof(recvLine));
+    _primaryServerSocket->receive(recvLine, MAX_MSG);
+
+    Pacote* recebido = new Pacote(recvLine);
+    if(recebido->getStatus() == Status::OK) {
+        StringUtils::printSuccess(recebido->getPayload());
+    }
+    else {
+        StringUtils::printDanger(recebido->getPayload());
+        _primaryServerSocket->closeSocket();
+        exit(4);
+    }
+    _isPrimary = false;
+}
+
+void* Servidor::ProcessKeyboardInputStatic(void* context){
+    ((Servidor*)context)->ProcessKeyboardInput();
+    pthread_exit(NULL);
+}
+
+void Servidor::ProcessKeyboardInput() {
+    StringUtils::printInfo("Thread criada para lidar com comandos no servidor!");
+
+    char line[MAX_MSG];
+    while(fgets(line, MAX_MSG, stdin) != NULL) {
+        StringUtils::removeNewLineAtEnd(line);
+        std::string lineString(line);
+        lineString.append(" ");
+        Comando comando = Pacote::getComandoFromLine(lineString);
+        StringUtils::printLine(lineString.c_str());
+        StringUtils::printLine(to_string(comando));
+    }
 }
 
 void* Servidor::handleNotificationsStatic(void* context) {
@@ -46,7 +116,7 @@ void Servidor::start() {
     pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
     while(true) {
 
-        StringUtils::printInfo("Esperando algum cliente conectar... ");
+        StringUtils::printInfo("Esperando algum cliente/servidor conectar... ");
 
         sem_wait(&_semaphorClientFD); // Espera a thread que vai lidar com o cliente pegar o clientFD
         _currentClientFD = _serverSocket->acceptConnection();
@@ -56,16 +126,61 @@ void Servidor::start() {
             continue;
         }
 
-        StringUtils::printInfo("Cliente conectado...");
-
-        pthread_t clientHandlerThread;
-        if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
-            StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
+        char buffer[MAX_MSG];
+        memset(buffer, 0, sizeof(buffer));
+        _serverSocket->receive(_currentClientFD, buffer, MAX_MSG);
+        Pacote* recebido = new Pacote(buffer);
+        if(recebido->getTipo() == Tipo::SERVIDOR) {
+            pthread_t serverHandlerThread;
+            if (pthread_create(&serverHandlerThread, NULL, &Servidor::handleServerStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
+                StringUtils::printDanger("Erro ao criar a Thread para lidar com o servidor.");
+                sem_post(&_semaphorClientFD);
+            }
+            else {
+                StringUtils::printInfo(recebido->serializeAsString());
+                Pacote send;
+                send = handleServerConnect(recebido->getUsuario(), recebido->getPayload());
+                _serverSocket->sendMessage(_currentClientFD, send.serializeAsCharPointer());
+                StringUtils::printInfo("Servidor conectado...");
+            }
+        }
+        else if(recebido->getTipo() == Tipo::CLIENTE){
+            pthread_t clientHandlerThread;
+            if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
+                StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
+                sem_post(&_semaphorClientFD);
+            }
+            else {
+                Pacote send;
+                StringUtils::printInfo("Cliente conectado...");
+                send = handleConnect(recebido->getUsuario(), _currentClientFD);
+                _serverSocket->sendMessage(_currentClientFD, send.serializeAsCharPointer());
+            }
+        }
+        else {
             sem_post(&_semaphorClientFD);
         }
     }
     
     _serverSocket->closeSocket();
+}
+
+void* Servidor::handleServerStatic(void* context) {
+    ((Servidor*)context)->handleServer();
+    pthread_exit(NULL);
+}
+void Servidor::handleServer() {
+    int n;
+    int clientFD = _currentClientFD;
+    char buffer[MAX_MSG];
+
+    sem_post(&_semaphorClientFD);
+
+}
+
+Pacote Servidor::handleServerConnect(std::string pid, std::string payload) {
+    Pacote send(Tipo::DATA, Status::OK, "Servidor conectado com sucesso!");
+    return send;
 }
 
 void* Servidor::handleClientStatic(void* context) {
@@ -89,9 +204,6 @@ void Servidor::handleClient() {
         StringUtils::printBold(recebido->serializeAsString());
         switch (recebido->getComando())
         {
-            case Comando::CONNECT:
-                send = handleConnect(recebido->getUsuario(), clientFD);   
-                break;
             case Comando::DISCONNECT:
                 handleDisconnect(recebido->getUsuario(), clientFD);
                 break;
@@ -391,8 +503,10 @@ Perfil Servidor::getPerfilByUsername(string username){
 }
 
 void Servidor::gracefullShutDown() {
-    saveFile();
-    notifyAllConnectedClients();
+    if(_isPrimary) {
+        saveFile();
+        notifyAllConnectedClients();
+    }
     sem_destroy(&_semaphorClientFD);
     sem_destroy(&_semaphorNotifications);
     if(_serverSocket->closeSocket())
