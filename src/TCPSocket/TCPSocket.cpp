@@ -77,13 +77,13 @@ int TCPSocket::sendMessage(const char* message) {
     //StringUtils::printInfo(to_string(numberOfBytes) + " bytes enviados para o socket " + to_string(_serverFD));
     return numberOfBytes;
 }
-int TCPSocket::sendMessage(int clientFD, char* message) {
-    size_t numberOfBytes = send(clientFD, message, strlen(message), 0);
+int TCPSocket::sendMessage(int FD, char* message) {
+    size_t numberOfBytes = send(FD, message, strlen(message), 0);
     //StringUtils::printInfo(to_string(numberOfBytes) + " bytes enviados para o socket " + to_string(clientFD));
     return numberOfBytes;
 }
-int TCPSocket::sendMessage(int clientFD, const char* message) {
-    size_t numberOfBytes = send(clientFD, message, strlen(message), 0);
+int TCPSocket::sendMessage(int FD, const char* message) {
+    size_t numberOfBytes = send(FD, message, strlen(message), 0);
     //StringUtils::printInfo(to_string(numberOfBytes) + " bytes enviados para o socket " + to_string(clientFD));
     return numberOfBytes;
 }
@@ -94,8 +94,8 @@ int TCPSocket::receive(char* buffer, int maxMessageSize) {
     //StringUtils::printDanger(buffer);
     return numberOfBytes;
 }
-int TCPSocket::receive(int clientFD, char* buffer, int maxMessageSize) {
-    size_t numberOfBytes = recv(clientFD, buffer, maxMessageSize, 0);
+int TCPSocket::receive(int FD, char* buffer, int maxMessageSize) {
+    size_t numberOfBytes = recv(FD, buffer, maxMessageSize, 0);
     //StringUtils::printInfo(to_string(numberOfBytes) + " bytes recebidos do o socket " + to_string(clientFD));
     //StringUtils::printDanger(buffer);
     return numberOfBytes;
@@ -106,8 +106,8 @@ int TCPSocket::receive(int clientFD, char* buffer, int maxMessageSize) {
 bool TCPSocket::closeSocket() {
     return (close(_serverFD) == 0);
 } 
-bool TCPSocket::closeSocket(int clientFD) {
-    return (close(clientFD) == 0);
+bool TCPSocket::closeSocket(int FD) {
+    return (close(FD) == 0);
 }
 
 void TCPSocket::printSocketInfo() {

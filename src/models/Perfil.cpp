@@ -33,7 +33,8 @@ void Perfil::printPerfil() {
         StringUtils::printLine("Nenhum");
     }
 
-    StringUtils::printWithPrefix("", "Notificacoes pendentes: ", Color::CYAN);
+    StringUtils::print("Notificacoes pendentes: ", Color::CYAN, true);
+    //StringUtils::printWithPrefix("", "Notificacoes pendentes: ", Color::CYAN);
     if(_notificacoesPendentes.size() > 0) {
         std::string notificacoesPendentes = "";
         for(int i=0; i<_notificacoesPendentes.size(); i++) {

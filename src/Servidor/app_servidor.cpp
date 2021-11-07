@@ -18,15 +18,19 @@ int main(int argc, char** argv) {
     signal(SIGINT, handleSignal);
 
     Servidor* s = NULL;
-    if(argc == 2)
+    bool primary = false;
+    if(argc == 2) {
         s = new Servidor(argv[1]);
+        primary = true;
+    }
     else if (argc == 4)
         s = new Servidor(argv[1], argv[2], argv[3]);
     
     Signalhandler = s;
     
     s->info();
-    s->start();
+    if(primary)
+        s->start();
 
     return 1;
 }

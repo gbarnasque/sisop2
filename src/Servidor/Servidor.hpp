@@ -24,9 +24,9 @@ typedef void * (*THREADFUNCPTR)(void *);
 
 class Servidor {
     private: 
-        int _currentClientFD;
+        int _currentFD;
         TCPSocket* _serverSocket;
-        sem_t _semaphorClientFD;
+        sem_t _semaphorCurrentFD;
         sem_t _semaphorNotifications;
         sem_t _semaphorPerfisInclusion;
         std::vector<Perfil> _perfis;
@@ -41,7 +41,10 @@ class Servidor {
 
         TCPSocket* _primaryServerSocket;
         bool _isPrimary;
+        sem_t _semaphorServerReplication;
+        std::vector<ServerPerfil> _pool;
 
+        void printPool();
     public:
         Servidor(char* port);
         Servidor(char* port, char* primaryIp, char* primaryPort);
@@ -71,5 +74,5 @@ class Servidor {
 
         static void* handleServerStatic(void* context);
         void handleServer();
-        Pacote handleServerConnect(std::string pid, std::string payload);
+        Pacote handleServerConnect(std::string pid, std::string payload, int FD);
 };

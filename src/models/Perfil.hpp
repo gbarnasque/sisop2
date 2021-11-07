@@ -9,6 +9,13 @@
 
 using namespace std;
 
+typedef struct server_perfil {
+    pid_t PID;
+    string Ip;
+    string Port;
+    int FD;
+} ServerPerfil;
+
 class Perfil {
     private:
         

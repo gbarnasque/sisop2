@@ -38,4 +38,7 @@ class Cliente {
 
         static void help();
         static bool checkStartupParameters(int argc, char** argv);
+        
+        static void* receiveMessagesOtherServersStatic(void* context);
+        void receiveMessagesOtherServers();
 };

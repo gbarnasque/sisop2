@@ -21,6 +21,8 @@ enum Comando {
     NOTIFICATION,
     GETNOTIFICATIONS,
     TESTE,
+    POOL,
+    PERFIS,
     NO = -1
 };
 

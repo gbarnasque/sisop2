@@ -153,6 +153,7 @@ string Pacote::serializeAsString() {
 
     return pacoteSerializadoString;
 }
+
 template <typename T>
 void Pacote::deserialize(T pacoteSerializado) {
     std::string nome;
@@ -228,6 +229,12 @@ Comando Pacote::getComandoFromLine(std::string line) {
     }
     else if(comando == "TESTE") {
         return Comando::TESTE;
+    }
+    else if(comando == "POOL"){
+        return Comando::POOL;
+    }
+    else if(comando == "PERFIS") {
+        return Comando::PERFIS;
     }
     else {
         return Comando::NO;

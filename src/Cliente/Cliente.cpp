@@ -136,14 +136,59 @@ void Cliente::ProcessKeyboardInput(){
 //A segunda espera receber pacotes do servidor e imprime as mensagens na tela
 void Cliente::interact() {
 
-    pthread_t thread1, thread2;
+    pthread_t thread1, thread2, thread3;
 
     pthread_create(&thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
     pthread_create(&thread2, NULL, Cliente::receiveNotificationsStatic, this);
+    pthread_create(&thread3, NULL, Cliente::receiveMessagesOtherServersStatic, this);
 
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
+    pthread_join(thread3, NULL);
 }
+
+void* Cliente::receiveMessagesOtherServersStatic(void* context) {
+    ((Cliente*)context)->receiveMessagesOtherServers();
+    pthread_exit(NULL);
+}
+void Cliente::receiveMessagesOtherServers() {
+    StringUtils::printInfo("[MESSAGESOTHERSERVERS] Thread3 iniciada!");
+    
+    char rcvLine[MAX_MSG];
+    memset(rcvLine, 0, sizeof(rcvLine));
+    while(_socket->receive(4, rcvLine, MAX_MSG) != -1) {
+        std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
+        
+        for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
+            if(pacote->getStatus() == Status::OK){
+                switch (pacote->getComando())
+                {
+                    case Comando::NOTIFICATION:
+                        StringUtils::printWithRandomPrefixColor(pacote->getPayload(), pacote->getUsuario() + ":");
+                        break;
+                    case Comando::DISCONNECT:
+                        StringUtils::printDanger(pacote->getPayload());
+                        handleExit();
+                        break;
+                    default:
+                        if(pacote->getPayload().size() != 0);
+                            StringUtils::printSuccess(pacote->getPayload());
+                        break;
+                }
+            } 
+            else {
+                if(pacote->getPayload().size() != 0);
+                    StringUtils::printDanger(pacote->getPayload());
+            }
+        }
+        
+        memset(rcvLine, 0, sizeof(rcvLine));
+    }
+    _socket->closeSocket();
+    StringUtils::printDanger("O servidor encerrou a conexão b");
+    exit(4);
+}
+
 
 bool Cliente::lineEstaOK(std::string line, Comando c) {
     switch (c)
