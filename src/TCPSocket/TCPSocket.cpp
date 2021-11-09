@@ -36,6 +36,26 @@ TCPSocket::TCPSocket(char* serverIp, char* serverPort) {
     StringUtils::printSuccess("Socket criada com sucesso");
 }
 
+
+TCPSocket::TCPSocket(const char* serverIp, const char* serverPort) {
+    // https://man7.org/linux/man-pages/man2/socket.2.html
+    // On success, a file descriptor for the new socket is returned. On error, -1 is returned
+    
+    StringUtils::printInfo("Criando socket...2");
+    if ((_serverFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        StringUtils::printDanger("Problema ao criar o socket!");
+        exit(2);
+    }
+
+    _port = atoi(serverPort);
+
+    memset(&_serverAddress, 0, sizeof(_serverAddress));
+    _serverAddress.sin_family = AF_INET;
+    _serverAddress.sin_addr.s_addr = (serverIp != NULL) ? htonl(inet_addr(serverIp)) : htonl(INADDR_ANY);
+    _serverAddress.sin_port = htons(_port);
+    StringUtils::printSuccess("Socket criada com sucesso");
+}
+
 bool TCPSocket::bindServer() {
     // https://man7.org/linux/man-pages/man2/bind.2.html
     // On success, zero is returned.  On error, -1 is returned

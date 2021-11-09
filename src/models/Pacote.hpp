@@ -40,12 +40,14 @@ class Pacote {
         std::string _usuario;
         std::string _payload;
         int _tamanhoPayload;
+        bool _isPrimary;
+        bool _isAlive;
 
         template <typename T>
         std::string generateInt(string identificador, T i, bool end = false);
         std::string generateString(string identificador, string s, bool end = false);
+        std::string generateBool(string identificador, bool b, bool end = false);
         
-
     public:
         Pacote();
         //~Pacote();
@@ -69,6 +71,15 @@ class Pacote {
         void setPayload(std::string payload);
         std::string getPayload();
         int getTamanhoPayload();
+
+        bool getIsAlive();
+        void setIsAlive(bool isAlive);
+        void setIsAlive(std::string isAlive);
+
+        bool getIsPrimary();
+        void setIsPrimary(bool isPrimary);
+        void setIsPrimary(std::string isPrimary);
+
 
         char* serializeAsCharPointer();
         std::string serializeAsString();

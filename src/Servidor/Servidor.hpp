@@ -7,7 +7,6 @@
 #include <semaphore.h>
 #include <ctime>
 #include <vector>
-#include <utility> // pair make_pair
 #include <fstream>
 
 #include "../StringUtils/StringUtils.hpp"
@@ -75,4 +74,6 @@ class Servidor {
         static void* handleServerStatic(void* context);
         void handleServer();
         Pacote handleServerConnect(std::string pid, std::string payload, int FD);
+        void sendPacoteToAllClients(Pacote pacote);
+        void updateClientePool(int fd);
 };

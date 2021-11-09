@@ -60,6 +60,8 @@ Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
     std::string sendPayload("0.0.0.0:");
     sendPayload.append(port);
     Pacote* enviado = new Pacote(Tipo::SERVIDOR, time(NULL), Comando::CONNECT, to_string(getpid()), sendPayload);
+    enviado->setIsAlive(true);
+    enviado->setIsPrimary(false);
     _primaryServerSocket->sendMessage(enviado->serializeAsString().c_str());
     char recvLine[MAX_MSG];
     memset(recvLine, 0, sizeof(recvLine));
@@ -78,9 +80,6 @@ Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
 
     pthread_t handleServer;
     pthread_create(&handleServer, NULL, &Servidor::handleServerStatic, this);
-    while(true) {
-
-    }
 }
 
 void* Servidor::ProcessKeyboardInputStatic(void* context){
@@ -124,6 +123,8 @@ void Servidor::printPool() {
             StringUtils::printWithRandomPrefixColor(_pool[i].Ip, "IP:");
             StringUtils::printWithRandomPrefixColor(_pool[i].Port, "Port:");
             StringUtils::printWithRandomPrefixColor(to_string(_pool[i].FD), "FD:");
+            StringUtils::printWithRandomPrefixColor(_pool[i].isPrimary ? "Yes" : "No", "IsPrimary:");
+            StringUtils::printWithRandomPrefixColor(_pool[i].isAlive ? "Yes" : "No", "IsAlive:");
         }
     } 
     else {
@@ -182,6 +183,7 @@ void Servidor::start() {
             }
             else 
                 StringUtils::printInfo("Servidor conectado...");
+
             sem_post(&_semaphorCurrentFD);
         }
         else if(recebido->getTipo() == Tipo::CLIENTE){
@@ -233,9 +235,31 @@ Pacote Servidor::handleServerConnect(std::string pid, std::string payload, int F
     servidor.Ip = payload.substr(0, payload.find_first_of(":"));
     servidor.Port = payload.substr(payload.find_first_of(":") + 1);
     servidor.FD = FD;
+    servidor.isAlive = true;
+    servidor.isPrimary = false;
     _pool.push_back(servidor);
 
     return send;
+}
+
+void Servidor::sendPacoteToAllClients(Pacote pacote) {
+    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        sem_wait(&perfil->_semaphorePerfil);
+        for(int i=0; i<perfil->_socketDescriptors.size(); i++) {
+            _serverSocket->sendMessage(perfil->_socketDescriptors[i], pacote.serializeAsString().c_str());
+        }
+        sem_post(&perfil->_semaphorePerfil);
+    }
+}
+
+void Servidor::updateClientePool(int fd) {
+    for(int i=0; i<_pool.size(); i++) {
+        Pacote send;
+        send.setComando(Comando::POOL);
+        send.setUsuario(to_string(_pool[i].PID));
+        send.setPayload(_pool[i].Ip + ":" + _pool[i].Port);
+        _serverSocket->sendMessage(fd, send.serializeAsCharPointer());
+    }
 }
 
 void* Servidor::handleClientStatic(void* context) {
@@ -252,6 +276,8 @@ void Servidor::handleClient() {
 
     Pacote send;
     StringUtils::printWarning("Thread criada para lidar com as requisicoes do cliente");
+
+    updateClientePool(_currentFD);
 
     memset(buffer, 0, sizeof(buffer));
     while( (n = _serverSocket->receive(clientFD, buffer, MAX_MSG)) > 0 ) {
@@ -558,6 +584,7 @@ Perfil Servidor::getPerfilByUsername(string username){
 }
 
 void Servidor::gracefullShutDown() {
+    /*
     if(_isPrimary) {
         saveFile();
         notifyAllConnectedClients();
@@ -566,6 +593,7 @@ void Servidor::gracefullShutDown() {
     sem_destroy(&_semaphorNotifications);
     if(_serverSocket->closeSocket())
         StringUtils::printSuccess("Servidor desligado com sucesso!");
+    */
     exit(0);
 }
 

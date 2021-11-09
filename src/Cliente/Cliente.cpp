@@ -1,44 +1,14 @@
 #include "Cliente.hpp"
 
 Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
-    char recvLine[MAX_MSG];
-
-    _socket = new TCPSocket(serverIp, serverPort);
-    
-    if(!_socket->connectSocket()) {
-        StringUtils::printDanger("Problema ao conectar ao servidor");
-        exit(3);
-    }
-    std::string usuario(user);
-    _usuario = usuario;
-    Pacote* enviado = new Pacote(Tipo::CLIENTE, time(NULL), Comando::CONNECT, usuario);
-    _socket->sendMessage(enviado->serializeAsString().c_str());
-    
-    memset(recvLine, 0, sizeof(recvLine));
-    _socket->receive(recvLine, MAX_MSG);
-
-    Pacote* recebido = new Pacote(recvLine);
-    if(recebido->getStatus() == Status::OK) {
-        StringUtils::printSuccess(recebido->getPayload());
-    }
-    else {
-        StringUtils::printDanger(recebido->getPayload());
-        _socket->closeSocket();
-        exit(4);
-    }
-    
-    enviado->setComando(Comando::GETNOTIFICATIONS);
-    _socket->sendMessage(enviado->serializeAsString().c_str());
+    std::string userString(user);
+    _usuario = userString;
+    _frontEnd = new FrontEnd(serverIp, serverPort, user);
 }
 
 void Cliente::handleExit() {
     StringUtils::printWarning("Saindo do aplicativo cliente");
-    Pacote* p = new Pacote();
-    p->setComando(Comando::DISCONNECT);
-    p->setStatus(Status::OK);
-    p->setUsuario(_usuario);
-    _socket->sendMessage(p->serializeAsString().c_str());
-    _socket->closeSocket();
+    _frontEnd->handleExit();
     exit(0);
 }
 
@@ -49,43 +19,8 @@ void* Cliente::receiveNotificationsStatic(void* context){
 
 //recebe as notificações enviadas pelo servidor dos
 //perfis que o usuário segue e as imprime na tela
-void Cliente::receiveNotifications(){
-
-    StringUtils::printInfo("[RECEIVENOTIFICATIONS] Thread2 iniciada!");
-    
-    char rcvLine[MAX_MSG];
-    memset(rcvLine, 0, sizeof(rcvLine));
-    while(_socket->receive(rcvLine, MAX_MSG) != -1) {
-        std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
-        
-        for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
-            if(pacote->getStatus() == Status::OK){
-                switch (pacote->getComando())
-                {
-                    case Comando::NOTIFICATION:
-                        StringUtils::printWithRandomPrefixColor(pacote->getPayload(), pacote->getUsuario() + ":");
-                        break;
-                    case Comando::DISCONNECT:
-                        StringUtils::printDanger(pacote->getPayload());
-                        handleExit();
-                        break;
-                    default:
-                        if(pacote->getPayload().size() != 0);
-                            StringUtils::printSuccess(pacote->getPayload());
-                        break;
-                }
-            } 
-            else {
-                if(pacote->getPayload().size() != 0);
-                    StringUtils::printDanger(pacote->getPayload());
-            }
-        }
-        
-        memset(rcvLine, 0, sizeof(rcvLine));
-    }
-    _socket->closeSocket();
-    StringUtils::printDanger("O servidor encerrou a conexão");
-    exit(4);
+void Cliente::receiveNotifications() {
+    _frontEnd->receiveNotifications();
 }
 
 void* Cliente::ProcessKeyboardInputStatic(void* context){
@@ -96,7 +31,7 @@ void* Cliente::ProcessKeyboardInputStatic(void* context){
 void Cliente::ProcessKeyboardInput(){
     StringUtils::printInfo("[PROCESSKEYBOARDINPUT] Esperando pelo input do usuario...");
     while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
-        Pacote* send;
+        //Pacote* send;
 
         StringUtils::removeNewLineAtEnd(sendLine);
         std::string sendLineString(sendLine);
@@ -116,10 +51,12 @@ void Cliente::ProcessKeyboardInput(){
                     break;
                 }
             case Comando::TESTE:    
-                send = new Pacote(Tipo::COMMAND, time(NULL), comando, _usuario, sendLineString);
-                _socket->sendMessage(send->serializeAsString().c_str());
+                //send = new Pacote(Tipo::COMMAND, time(NULL), comando, _usuario, sendLineString);
+                _frontEnd->sendPacote(comando, sendLineString);
                 break;
-            
+            case Comando::POOL:
+                _frontEnd->printPool();
+                break;
             case Comando::NO:
             default:
                 StringUtils::printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"");
@@ -140,11 +77,11 @@ void Cliente::interact() {
 
     pthread_create(&thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
     pthread_create(&thread2, NULL, Cliente::receiveNotificationsStatic, this);
-    pthread_create(&thread3, NULL, Cliente::receiveMessagesOtherServersStatic, this);
+    //pthread_create(&thread3, NULL, Cliente::receiveMessagesOtherServersStatic, this);
 
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
-    pthread_join(thread3, NULL);
+    //pthread_join(thread3, NULL);
 }
 
 void* Cliente::receiveMessagesOtherServersStatic(void* context) {

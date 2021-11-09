@@ -22,6 +22,7 @@ class TCPSocket {
     public:
         TCPSocket();
         TCPSocket(char* serverIp, char* serverPort);
+        TCPSocket(const char* serverIp, const char* serverPort);
         bool bindServer();
         bool startListen(int backlog);
         int acceptConnection();

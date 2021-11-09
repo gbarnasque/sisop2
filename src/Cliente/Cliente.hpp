@@ -1,20 +1,10 @@
 #pragma once
 #include <stdlib.h>
 #include <stdio.h>
-#include <iostream>
 #include <string.h>
-#include <string>
 #include <pthread.h>
-#include <vector>
 
-#include "../StringUtils/StringUtils.hpp"
-#include "../TCPSocket/TCPSocket.hpp"
-#include "../models/Pacote.hpp"
-
-#define MAX_MSG 1024
-#define MAX_TWEET_LEN 128
-#define MIN_USER_LEN 4
-#define MAX_USER_LEN 20
+#include "./FrontEnd.hpp"
 
 class Cliente {
     private:
@@ -22,6 +12,8 @@ class Cliente {
         TCPSocket* _socket;
         std::string _usuario;
         std::vector<Pacote> _pacotes;
+
+        FrontEnd* _frontEnd;
 
     public:
         Cliente(char* serverIp, char* serverPort, char* user);        

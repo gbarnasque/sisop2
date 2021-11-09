@@ -29,8 +29,8 @@ int main(int argc, char** argv) {
     Signalhandler = s;
     
     s->info();
-    if(primary)
-        s->start();
+    //if(primary)
+    s->start();
 
     return 1;
 }
