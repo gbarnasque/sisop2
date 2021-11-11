@@ -2,17 +2,24 @@
 
 TCPSocket::TCPSocket() {
     StringUtils::printInfo("Criando socket...1");
-    if ((_serverFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if (!createSocket()) {
         StringUtils::printDanger("Problema ao criar o socket!");
         exit(2);
     }
+    int t = 1;
+    setsockopt(_serverFD,SOL_SOCKET,SO_REUSEADDR,&t,sizeof(int));
+    
 
-    _port = DEFAULT_PORT;
+    _ip = (char*) malloc(sizeof(char)*(strlen(DEFAULT_IP_CHAR_POINTER) + 1));
+    strcpy(_ip, DEFAULT_IP_CHAR_POINTER);
+
+    _port = (char*) malloc(sizeof(char)*strlen(DEFAULT_PORT_CHAR_POINTER));
+    strcpy(_port, DEFAULT_PORT_CHAR_POINTER);
 
     memset(&_serverAddress, 0, sizeof(_serverAddress));
     _serverAddress.sin_family = AF_INET;
     _serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    _serverAddress.sin_port = htons(_port);
+    _serverAddress.sin_port = htons(DEFAULT_PORT);
 
     StringUtils::printSuccess("Socket criada com sucesso");
 }
@@ -22,18 +29,29 @@ TCPSocket::TCPSocket(char* serverIp, char* serverPort) {
     // On success, a file descriptor for the new socket is returned. On error, -1 is returned
     
     StringUtils::printInfo("Criando socket...2");
-    if ((_serverFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if (!createSocket()) {
         StringUtils::printDanger("Problema ao criar o socket!");
         exit(2);
     }
+    int t = 1;
+    setsockopt(_serverFD,SOL_SOCKET,SO_REUSEADDR,&t,sizeof(int));
 
-    _port = atoi(serverPort);
+    if(serverIp != NULL) {
+        _ip = (char*) malloc(sizeof(char)*(strlen(serverIp) + 1));
+        strcpy(_ip, serverIp);
+    } else {
+        _ip = (char*) malloc(sizeof(char)*(strlen(DEFAULT_IP_CHAR_POINTER) + 1));
+        strcpy(_ip, DEFAULT_IP_CHAR_POINTER);
+    }
+       
+    _port = (char*) malloc(sizeof(char)*(strlen(serverPort) + 1));
+    strcpy(_port, serverPort);
 
     memset(&_serverAddress, 0, sizeof(_serverAddress));
     _serverAddress.sin_family = AF_INET;
     _serverAddress.sin_addr.s_addr = (serverIp != NULL) ? htonl(inet_addr(serverIp)) : htonl(INADDR_ANY);
-    _serverAddress.sin_port = htons(_port);
-    StringUtils::printSuccess("Socket criada com sucesso");
+    _serverAddress.sin_port = htons(atoi(_port));
+    StringUtils::printSuccess("Socket criada com sucesso");    
 }
 
 
@@ -41,19 +59,35 @@ TCPSocket::TCPSocket(const char* serverIp, const char* serverPort) {
     // https://man7.org/linux/man-pages/man2/socket.2.html
     // On success, a file descriptor for the new socket is returned. On error, -1 is returned
     
-    StringUtils::printInfo("Criando socket...2");
-    if ((_serverFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    StringUtils::printInfo("Criando socket...3");
+    if (!createSocket()) {
         StringUtils::printDanger("Problema ao criar o socket!");
         exit(2);
     }
+    int t = 1;
+    setsockopt(_serverFD,SOL_SOCKET,SO_REUSEADDR,&t,sizeof(int));
+    
+    if(serverIp != NULL) {
+        _ip = (char*) malloc(sizeof(char)*(strlen(serverIp) + 1));
+        strcpy(_ip, serverIp);
+    } else {
+        _ip = (char*) malloc(sizeof(char)*(strlen(DEFAULT_IP_CHAR_POINTER) + 1));
+        strcpy(_ip, DEFAULT_IP_CHAR_POINTER);
+    }
+       
+    _port = (char*) malloc(sizeof(char)*(strlen(serverPort) + 1));
+    strcpy(_port, serverPort);
 
-    _port = atoi(serverPort);
 
     memset(&_serverAddress, 0, sizeof(_serverAddress));
     _serverAddress.sin_family = AF_INET;
     _serverAddress.sin_addr.s_addr = (serverIp != NULL) ? htonl(inet_addr(serverIp)) : htonl(INADDR_ANY);
-    _serverAddress.sin_port = htons(_port);
+    _serverAddress.sin_port = htons(atoi(_port));
     StringUtils::printSuccess("Socket criada com sucesso");
+}
+
+bool TCPSocket::createSocket() {
+    return ((_serverFD = socket(AF_INET, SOCK_STREAM, 0)) > 0);
 }
 
 bool TCPSocket::bindServer() {
@@ -81,7 +115,9 @@ int TCPSocket::acceptConnection() {
 // https://man7.org/linux/man-pages/man2/connect.2.html
 // If the connection or binding succeeds, zero is returned. On error, -1 is returned
 bool TCPSocket::connectSocket() {
-    StringUtils::printInfo("Tentando conectar ao servidor");
+    string ip(_ip);
+    string port(_port);
+    StringUtils::printInfo("Tentando conectar ao servidor " + ip + ":" + port);
     return (connect(_serverFD, (struct sockaddr *) &_serverAddress, sizeof(_serverAddress)) == 0);
 }
 
@@ -130,11 +166,26 @@ bool TCPSocket::closeSocket(int FD) {
     return (close(FD) == 0);
 }
 
+char* TCPSocket::getSocketIp() {
+    return _ip;
+}
+char* TCPSocket::getSocketPort() {
+    return _port;
+}
+int TCPSocket::getServerFD() {
+    return _serverFD;
+}
+void TCPSocket::unbindServerSocket() {
+    int t = 1;
+    setsockopt(_serverFD,SOL_SOCKET,SO_REUSEADDR,&t,sizeof(int));
+}
+
 void TCPSocket::printSocketInfo() {
     char ip[INET_ADDRSTRLEN];
     struct in_addr ipAddr = (&_serverAddress)->sin_addr;
     inet_ntop(AF_INET, &ipAddr, ip, INET_ADDRSTRLEN);
     std::string ip_str(ip);
-    std::string info = "Servidor rodando em " + ip_str + ":" + to_string(_port);
+    std::string port_str(_port);
+    std::string info = "Servidor rodando em " + ip_str + ":" + port_str;
     StringUtils::printSuccess(info);
 }

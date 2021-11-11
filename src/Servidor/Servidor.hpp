@@ -43,6 +43,8 @@ class Servidor {
         sem_t _semaphorServerReplication;
         std::vector<ServerPerfil> _pool;
 
+        pthread_t _handleServer;
+
         void printPool();
     public:
         Servidor(char* port);
@@ -51,7 +53,7 @@ class Servidor {
         void info();
         void handleClient();
 
-        Pacote handleConnect(std::string usuario, int socketDescriptor);
+        Pacote handleClienteConnect(std::string usuario, int socketDescriptor);
         void handleDisconnect(std::string usuario, int socketDescriptor);
         Pacote handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
         Pacote handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
@@ -76,4 +78,9 @@ class Servidor {
         Pacote handleServerConnect(std::string pid, std::string payload, int FD);
         void sendPacoteToAllClients(Pacote pacote);
         void updateClientePool(int fd);
+
+        static void* servidorPrimarioHandlerStatic(void* context);
+        void servidorPrimarioHandler();
+        void sendPacoteToAllServidoresBackup(Pacote pacote);
+        void restartAsPrimary();
 };

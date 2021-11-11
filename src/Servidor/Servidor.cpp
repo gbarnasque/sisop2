@@ -43,7 +43,7 @@ Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
     sem_init(&_semaphorPerfisInclusion, 0, 1);
     _GLOBAL_NOTIFICACAO_ID = 0;
     _saveFileName = "save.csv";
-    //fillFromFile();
+    fillFromFile();
 
     sem_init(&_semaphorServerReplication, 0, 1);
 
@@ -78,8 +78,7 @@ Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
     }
     _isPrimary = false;
 
-    pthread_t handleServer;
-    pthread_create(&handleServer, NULL, &Servidor::handleServerStatic, this);
+    pthread_create(&_handleServer, NULL, &Servidor::handleServerStatic, this);
 }
 
 void* Servidor::ProcessKeyboardInputStatic(void* context){
@@ -151,61 +150,146 @@ void Servidor::handleNotifications() {
 void Servidor::start() {
     StringUtils::printSuccess("Servidor iniciado");
 
-    pthread_t notificationHandler;
-    pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
-    while(true) {
-
-        StringUtils::printInfo("Esperando algum cliente/servidor conectar... ");
-
-        sem_wait(&_semaphorCurrentFD); // Espera a thread que vai lidar com o cliente pegar o clientFD
-        _currentFD = _serverSocket->acceptConnection();
-        if(_currentFD == -1) {
-            StringUtils::printDanger("Houve um problema ao conectar com o cliente");
-            sem_post(&_semaphorCurrentFD);
-            continue;
-        }
-
-        char buffer[MAX_MSG];
-        memset(buffer, 0, sizeof(buffer));
-        _serverSocket->receive(_currentFD, buffer, MAX_MSG);
-        Pacote* recebido = new Pacote(buffer);
-        if(recebido->getTipo() == Tipo::SERVIDOR) {
-           
-            StringUtils::printInfo(recebido->serializeAsString());
-            Pacote send;
-            send = handleServerConnect(recebido->getUsuario(), recebido->getPayload(), _currentFD);
-            _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
-            
-            pthread_t serverHandlerThread;
-            if (pthread_create(&serverHandlerThread, NULL, &Servidor::handleServerStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
-                StringUtils::printDanger("Erro ao criar a Thread para lidar com o servidor.");
-                //
-            }
-            else 
-                StringUtils::printInfo("Servidor conectado...");
-
-            sem_post(&_semaphorCurrentFD);
-        }
-        else if(recebido->getTipo() == Tipo::CLIENTE){
-            Pacote send;
-
-            send = handleConnect(recebido->getUsuario(), _currentFD);
-            _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
-
-            pthread_t clientHandlerThread;
-            if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
-                StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
-                sem_post(&_semaphorCurrentFD);
-            }
-            else 
-                StringUtils::printInfo("Cliente conectado...");
-        }
-        else {
-            sem_post(&_semaphorCurrentFD);
-        }
+    if(!_isPrimary) {
+        //pthread_t servidorPrimarioHandler;
+        //pthread_create(&servidorPrimarioHandler, NULL, &Servidor::servidorPrimarioHandlerStatic, this);
+        servidorPrimarioHandler(); 
     }
-    
+    else {
+
+        pthread_t notificationHandler;
+        pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
+        while(true) {
+            
+            sem_wait(&_semaphorCurrentFD); // Espera a thread que vai lidar com o cliente pegar o clientFD
+            StringUtils::printInfo("Esperando algum cliente/servidor conectar... ");
+            _currentFD = _serverSocket->acceptConnection();
+            StringUtils::printSuccess("aceitou conexão");
+            if(_currentFD == -1) {
+                StringUtils::printDanger("Houve um problema ao conectar com o cliente");
+                sem_post(&_semaphorCurrentFD);
+                continue;
+            }
+
+            char buffer[MAX_MSG];
+            memset(buffer, 0, sizeof(buffer));
+            _serverSocket->receive(_currentFD, buffer, MAX_MSG);
+            Pacote* recebido = new Pacote(buffer);
+            if(recebido->getTipo() == Tipo::SERVIDOR) {
+            
+                StringUtils::printInfo(recebido->serializeAsString());
+                Pacote send;
+                send = handleServerConnect(recebido->getUsuario(), recebido->getPayload(), _currentFD);
+                _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
+                
+                pthread_t serverHandlerThread;
+                if (pthread_create(&serverHandlerThread, NULL, &Servidor::handleServerStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
+                        StringUtils::printDanger("Erro ao criar a Thread para lidar com o servidor.");
+                        //
+                    }
+                    else 
+                        StringUtils::printInfo("Servidor conectado...");
+
+                    sem_post(&_semaphorCurrentFD);
+                }
+                else if(recebido->getTipo() == Tipo::CLIENTE){
+                    Pacote send;
+
+                    send = handleClienteConnect(recebido->getUsuario(), _currentFD);
+                    //recebido->setPayload(to_string(_currentFD));
+                    //sendPacoteToAllServidoresBackup(*recebido);
+                    _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
+
+                    pthread_t clientHandlerThread;
+                    if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
+                        StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
+                        sem_post(&_semaphorCurrentFD);
+                    }
+                    else 
+                        StringUtils::printInfo("Cliente conectado...");
+                }
+                else {
+                    sem_post(&_semaphorCurrentFD);
+                }
+        }
+        _serverSocket->closeSocket();
+    }
+}
+
+void* Servidor::servidorPrimarioHandlerStatic(void* context) {
+    ((Servidor*)context)->servidorPrimarioHandler();
+    pthread_exit(NULL);
+}
+
+void Servidor::servidorPrimarioHandler() {
+    char rcvLine[MAX_MSG];
+    memset(rcvLine, 0, sizeof(rcvLine));
+    int bytesRead;
+    while((bytesRead = _primaryServerSocket->receive(rcvLine, MAX_MSG)) != -1 ) {
+        if(bytesRead == 0) {
+            // Start election
+
+            restartAsPrimary();
+            
+        }
+        std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
+        Pacote send;
+        for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
+            if(pacote->getStatus() == Status::OK){
+                switch (pacote->getComando())
+                {
+                    case Comando::CONNECT:
+                        //send = handleClienteConnect(pacote->getUsuario(), atoi(pacote->getPayload().c_str()));
+                        //_primaryServerSocket->sendMessage(send.serializeAsCharPointer());
+                        StringUtils::printWithRandomPrefixColor(pacote->getPayload(), pacote->getUsuario() + ":");
+                        break;
+                    /*case Comando::DISCONNECT:
+                        StringUtils::printDanger(pacote->getPayload());
+                        handleExit();
+                        break;
+                        */
+                    case Comando::POOL:
+
+                        break;
+                    default:
+                        if(pacote->getPayload().size() != 0);
+                            StringUtils::printSuccess(pacote->getPayload());
+                        break;
+                }
+            } 
+            else {
+                if(pacote->getPayload().size() != 0);
+                    StringUtils::printDanger(pacote->getPayload());
+            }
+
+        }     
+        memset(rcvLine, 0, sizeof(rcvLine));
+    }
+    _primaryServerSocket->closeSocket();
+    StringUtils::printDanger("O servidor encerrou a conexão");
+    exit(4);   
+}
+
+void Servidor::restartAsPrimary() {
     _serverSocket->closeSocket();
+    _primaryServerSocket->closeSocket();
+    _serverSocket = new TCPSocket(_primaryServerSocket->getSocketIp(), _primaryServerSocket->getSocketPort());
+    _isPrimary = true;
+    while(!_serverSocket->bindServer()) {
+        StringUtils::printDanger("Erro ao realizar o bind do socket do servidor");
+        sleep(1);
+    }
+    if(!_serverSocket->startListen(MAX_CLIENTS)) {
+        StringUtils::printDanger("Erro ao comecar o listen do servidor");
+        exit(2);
+    }
+    /*Pacote p;
+    p.setComando(Comando::NO);
+    p.setPayload("Servidor reestabelecido.");
+    p.setStatus(Status::OK);
+    sendPacoteToAllClients(p);*/
+    //sem_post(&_semaphorCurrentFD);
+    start();
 }
 
 void* Servidor::handleServerStatic(void* context) {
@@ -242,7 +326,20 @@ Pacote Servidor::handleServerConnect(std::string pid, std::string payload, int F
     return send;
 }
 
+void Servidor::sendPacoteToAllServidoresBackup(Pacote pacote) {
+    for(std::vector<ServerPerfil>::iterator server = _pool.begin(); server != _pool.end(); server++ ) {
+        _serverSocket->sendMessage(server->FD, pacote.serializeAsCharPointer());
+        char rcvLine[MAX_MSG];
+        memset(rcvLine, 0, sizeof(rcvLine));
+        _serverSocket->receive(server->FD, rcvLine, MAX_MSG);
+        Pacote* rcv = new Pacote(rcvLine);
+        if(rcv->getStatus() == Status::OK)
+            continue;
+    }
+}
+
 void Servidor::sendPacoteToAllClients(Pacote pacote) {
+    sem_wait(&_semaphorPerfisInclusion);
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         sem_wait(&perfil->_semaphorePerfil);
         for(int i=0; i<perfil->_socketDescriptors.size(); i++) {
@@ -250,6 +347,7 @@ void Servidor::sendPacoteToAllClients(Pacote pacote) {
         }
         sem_post(&perfil->_semaphorePerfil);
     }
+    sem_post(&_semaphorPerfisInclusion);
 }
 
 void Servidor::updateClientePool(int fd) {
@@ -277,7 +375,7 @@ void Servidor::handleClient() {
     Pacote send;
     StringUtils::printWarning("Thread criada para lidar com as requisicoes do cliente");
 
-    updateClientePool(_currentFD);
+    //updateClientePool(_currentFD);
 
     memset(buffer, 0, sizeof(buffer));
     while( (n = _serverSocket->receive(clientFD, buffer, MAX_MSG)) > 0 ) {
@@ -323,7 +421,7 @@ void Servidor::handleClient() {
         StringUtils::printWarning("Cliente se desconectou do servidor");
 }
 
-Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
+Pacote Servidor::handleClienteConnect(string usuario, int socketDescriptor) {
     bool conectado = false;
     int index;
     Pacote send(Tipo::DATA, Status::OK, "Usuario conectado com sucesso!");
@@ -341,12 +439,17 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
         // Caso esteja com duas conexẽos da ruim
         sem_wait(&_perfis[index]._semaphorePerfil);
         if(_perfis[index]._socketDescriptors.size() == 2) {
-            string message = "Numero maximo de conexoes para o usuario excedido";
-            send.setStatus(Status::ERROR);
-            send.setPayload(message);
-            StringUtils::printWarning("Desconectando " + usuario + " no socket " +  to_string(socketDescriptor) + ". Motivo: " + message);
+            if(_perfis[index]._socketDescriptors[0] != socketDescriptor || _perfis[index]._socketDescriptors[1] == socketDescriptor) {
+                string message = "Numero maximo de conexoes para o usuario excedido";
+                send.setStatus(Status::ERROR);
+                send.setPayload(message);
+                StringUtils::printWarning("Desconectando " + usuario + " no socket " +  to_string(socketDescriptor) + ". Motivo: " + message);
+            }
         }
-        else { // Caso não, adiciona
+        else if(_perfis[index]._socketDescriptors.size() == 1 && _perfis[index]._socketDescriptors[0] != socketDescriptor) {
+            _perfis[index]._socketDescriptors.push_back(socketDescriptor);
+        }
+        else {
             _perfis[index]._socketDescriptors.push_back(socketDescriptor);
         }
         sem_post(&_perfis[index]._semaphorePerfil);
@@ -357,7 +460,7 @@ Pacote Servidor::handleConnect(string usuario, int socketDescriptor) {
     }
     sem_post(&_semaphorPerfisInclusion);
     // fecha socket e termina a thread caso usuario tenha sido "deslogado"
-    if(send.getStatus() == Status::ERROR) {
+    if(_isPrimary && send.getStatus() == Status::ERROR) {
         _serverSocket->sendMessage(socketDescriptor, send.serializeAsString().c_str());
         StringUtils::printDanger("Fechando socket " + socketDescriptor);
         _serverSocket->closeSocket(socketDescriptor);
@@ -584,7 +687,7 @@ Perfil Servidor::getPerfilByUsername(string username){
 }
 
 void Servidor::gracefullShutDown() {
-    /*
+    
     if(_isPrimary) {
         saveFile();
         notifyAllConnectedClients();
@@ -593,7 +696,7 @@ void Servidor::gracefullShutDown() {
     sem_destroy(&_semaphorNotifications);
     if(_serverSocket->closeSocket())
         StringUtils::printSuccess("Servidor desligado com sucesso!");
-    */
+    
     exit(0);
 }
 

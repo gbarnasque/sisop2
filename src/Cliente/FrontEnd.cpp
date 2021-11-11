@@ -46,9 +46,11 @@ void FrontEnd::receiveNotifications() {
     while((bytesRead = _socket->receive(rcvLine, MAX_MSG)) != -1 ) {
         if(bytesRead == 0) {
             sem_wait(&_semaphorSendPacote);
+            memset(rcvLine, 0, sizeof(rcvLine));
+            sleep(2);
             _socket->closeSocket();
-            //StringUtils::printDanger(_servidores[0].Ip + ":" + _servidores[0].Port);
-            connectToServer(_servidores[0].Ip.c_str(), _servidores[0].Port.c_str());
+            connectToServer(_socket->getSocketIp(), _socket->getSocketPort());
+            StringUtils::printSuccess("Reconectado no servidor.");
             sem_post(&_semaphorSendPacote);
         }
         std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
