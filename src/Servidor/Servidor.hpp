@@ -77,10 +77,11 @@ class Servidor {
         void handleServer();
         Pacote handleServerConnect(std::string pid, std::string payload, int FD);
         void sendPacoteToAllClients(Pacote pacote);
-        void updateClientePool(int fd);
+        //void updateClientePool(int fd);
 
         static void* servidorPrimarioHandlerStatic(void* context);
         void servidorPrimarioHandler();
         void sendPacoteToAllServidoresBackup(Pacote pacote);
         void restartAsPrimary();
+        void resetClientSockets();
 };

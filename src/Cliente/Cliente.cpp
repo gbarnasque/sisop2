@@ -54,9 +54,11 @@ void Cliente::ProcessKeyboardInput(){
                 //send = new Pacote(Tipo::COMMAND, time(NULL), comando, _usuario, sendLineString);
                 _frontEnd->sendPacote(comando, sendLineString);
                 break;
+            /*
             case Comando::POOL:
                 _frontEnd->printPool();
                 break;
+            */
             case Comando::NO:
             default:
                 StringUtils::printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"");

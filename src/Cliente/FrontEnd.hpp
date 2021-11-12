@@ -24,7 +24,7 @@ class FrontEnd  {
         std::vector<Pacote> _pacotes;
 
         sem_t _semaphorSendPacote;
-        std::vector<ServerPerfil> _servidores;
+        //std::vector<ServerPerfil> _servidores;
 
     public:
         FrontEnd(char* serverIp, char* serverPort, char* user);
@@ -35,6 +35,6 @@ class FrontEnd  {
         void handleExit();
         void sendPacote(Pacote pacote);
         void sendPacote(Comando comando, std::string payload);
-        void printPool();
+        //void printPool();
 
 };

@@ -153,7 +153,9 @@ void Servidor::start() {
     if(!_isPrimary) {
         //pthread_t servidorPrimarioHandler;
         //pthread_create(&servidorPrimarioHandler, NULL, &Servidor::servidorPrimarioHandlerStatic, this);
-        servidorPrimarioHandler(); 
+        pthread_t notificationHandler;
+        pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
+        servidorPrimarioHandler();
     }
     else {
 
@@ -196,8 +198,8 @@ void Servidor::start() {
                     Pacote send;
 
                     send = handleClienteConnect(recebido->getUsuario(), _currentFD);
-                    //recebido->setPayload(to_string(_currentFD));
-                    //sendPacoteToAllServidoresBackup(*recebido);
+                    recebido->setPayload(to_string(_currentFD));
+                    sendPacoteToAllServidoresBackup(*recebido);
                     _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
 
                     pthread_t clientHandlerThread;
@@ -239,11 +241,26 @@ void Servidor::servidorPrimarioHandler() {
                 switch (pacote->getComando())
                 {
                     case Comando::CONNECT:
-                        //send = handleClienteConnect(pacote->getUsuario(), atoi(pacote->getPayload().c_str()));
-                        //_primaryServerSocket->sendMessage(send.serializeAsCharPointer());
+                        send = handleClienteConnect(pacote->getUsuario(), atoi(pacote->getPayload().c_str()));
                         StringUtils::printWithRandomPrefixColor(pacote->getPayload(), pacote->getUsuario() + ":");
                         break;
-                    /*case Comando::DISCONNECT:
+                    case Comando::SEND:
+                        send = handleSend(pacote->getUsuario(), pacote->getTimestamp(), pacote->getPayload(), pacote->getPayload().size());
+                        sem_post(&_semaphorNotifications);
+                        break;
+                    case Comando::FOLLOW:
+                        send = handleFollow(pacote->getPayload(), pacote->getUsuario());
+                        break;
+                    case Comando::DISCONNECT:
+                        handleDisconnect(pacote->getUsuario(), atoi(pacote->getPayload().c_str()));
+                        send.setStatus(Status::OK);
+                        break;
+                    case Comando::GETNOTIFICATIONS:
+                        send.setStatus(Status::OK);
+                        sem_post(&_semaphorNotifications); 
+                        break;
+
+                    /*case Comando::
                         StringUtils::printDanger(pacote->getPayload());
                         handleExit();
                         break;
@@ -256,6 +273,7 @@ void Servidor::servidorPrimarioHandler() {
                             StringUtils::printSuccess(pacote->getPayload());
                         break;
                 }
+                _primaryServerSocket->sendMessage(send.serializeAsCharPointer());
             } 
             else {
                 if(pacote->getPayload().size() != 0);
@@ -271,6 +289,7 @@ void Servidor::servidorPrimarioHandler() {
 }
 
 void Servidor::restartAsPrimary() {
+    resetClientSockets();
     _serverSocket->closeSocket();
     _primaryServerSocket->closeSocket();
     _serverSocket = new TCPSocket(_primaryServerSocket->getSocketIp(), _primaryServerSocket->getSocketPort());
@@ -292,6 +311,12 @@ void Servidor::restartAsPrimary() {
     start();
 }
 
+void Servidor::resetClientSockets() {
+    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        perfil->_socketDescriptors.clear();
+    }
+}
+
 void* Servidor::handleServerStatic(void* context) {
     ((Servidor*)context)->handleServer();
     pthread_exit(NULL);
@@ -301,7 +326,6 @@ void Servidor::handleServer() {
     //int currentFD = _currentFD;
     char buffer[MAX_MSG];
 
-    StringUtils::printInfo("teste");
     while (true)
     {
         /* code */
@@ -350,6 +374,7 @@ void Servidor::sendPacoteToAllClients(Pacote pacote) {
     sem_post(&_semaphorPerfisInclusion);
 }
 
+/*
 void Servidor::updateClientePool(int fd) {
     for(int i=0; i<_pool.size(); i++) {
         Pacote send;
@@ -359,6 +384,7 @@ void Servidor::updateClientePool(int fd) {
         _serverSocket->sendMessage(fd, send.serializeAsCharPointer());
     }
 }
+*/
 
 void* Servidor::handleClientStatic(void* context) {
     ((Servidor*)context)->handleClient();
@@ -385,17 +411,26 @@ void Servidor::handleClient() {
         {
             case Comando::DISCONNECT:
                 handleDisconnect(recebido->getUsuario(), clientFD);
+                recebido->setPayload(to_string(clientFD));
+                sendPacoteToAllServidoresBackup(*recebido);
+                StringUtils::printWarning("Desconectando " + recebido->getUsuario() + " no socket " + to_string(clientFD) + ". Motivo: Usuario deslogado");
+                _serverSocket->closeSocket(clientFD);
+                pthread_exit(NULL);
                 break;
             case Comando::SEND:
                 send = handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
+                if(send.getStatus() == Status::OK)
+                    sendPacoteToAllServidoresBackup(*recebido);
                 sem_post(&_semaphorNotifications);
                 break;
             case Comando::FOLLOW:
                 send = handleFollow(recebido->getPayload(), recebido->getUsuario());
-                //StringUtils::printBold(recebido->serializeAsString());
+                if(send.getStatus() == Status::OK)
+                    sendPacoteToAllServidoresBackup(*recebido);
                 break;
             case Comando::GETNOTIFICATIONS:
                 sem_post(&_semaphorNotifications);
+                sendPacoteToAllServidoresBackup(*recebido);
                 break;
             case Comando::TESTE:
                 printPerfis();
@@ -485,9 +520,6 @@ void Servidor::handleDisconnect(string usuario, int socketDescriptor) {
         }
         sem_post(&perfil->_semaphorePerfil);
     }
-    StringUtils::printWarning("Desconectando " + usuario + " no socket " +  to_string(socketDescriptor) + ". Motivo: Usuario deslogado");
-    _serverSocket->closeSocket(socketDescriptor);
-    pthread_exit(NULL);
 }
 
 Pacote Servidor::handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload) {
@@ -580,7 +612,8 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
                             if(par->second == idNotificacao) {
                                 bool sent = false;
                                 for(int i=0; i<p->_socketDescriptors.size(); i++) {
-                                    _serverSocket->sendMessage(p->_socketDescriptors[i], pacote->serializeAsString().c_str());
+                                    if(_isPrimary) 
+                                        _serverSocket->sendMessage(p->_socketDescriptors[i], pacote->serializeAsString().c_str());
                                     sent = true;
                                 }
                                 if(sent) {
@@ -690,7 +723,7 @@ void Servidor::gracefullShutDown() {
     
     if(_isPrimary) {
         saveFile();
-        notifyAllConnectedClients();
+        //notifyAllConnectedClients();
     }
     sem_destroy(&_semaphorCurrentFD);
     sem_destroy(&_semaphorNotifications);

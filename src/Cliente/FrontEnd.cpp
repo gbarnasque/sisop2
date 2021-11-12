@@ -69,6 +69,7 @@ void FrontEnd::receiveNotifications() {
                         handleExit();
                         break;
                         */
+                    /*
                     case Comando::POOL:
                         servidorBackup.PID = (pid_t)atoi(pacote->getUsuario().c_str());
                         servidorBackup.Ip = payload.substr(0, payload.find_first_of(":"));
@@ -76,6 +77,7 @@ void FrontEnd::receiveNotifications() {
                         servidorBackup.isPrimary = pacote->getIsPrimary();
                         servidorBackup.isAlive = pacote->getIsAlive();                        
                         _servidores.push_back(servidorBackup);
+                        */
                         break;
                     default:
                         if(pacote->getPayload().size() != 0);
@@ -94,6 +96,7 @@ void FrontEnd::receiveNotifications() {
     StringUtils::printDanger("O servidor encerrou a conexão");
     exit(4);   
 }
+/*
 void FrontEnd::printPool() {
     if(_servidores.size() != 0) {
         for(int i=0; i<_servidores.size(); i++) {
@@ -110,6 +113,7 @@ void FrontEnd::printPool() {
         StringUtils::printInfo("Cliente ainda não possui servidores backup listados");
     }
 }
+*/
 
 void FrontEnd::handleExit() {
     Pacote* p = new Pacote(Tipo::COMMAND, time(NULL), Comando::DISCONNECT, _usuario);
