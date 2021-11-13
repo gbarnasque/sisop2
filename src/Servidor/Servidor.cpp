@@ -47,9 +47,19 @@ Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
 
     sem_init(&_semaphorServerReplication, 0, 1);
 
-    pthread_t keyboardThead;
-    pthread_create(&keyboardThead, NULL, &Servidor::ProcessKeyboardInputStatic, this);
+    pthread_t keyboardThread;
+    pthread_create(&keyboardThread, NULL, &Servidor::ProcessKeyboardInputStatic, this);
+    pthread_t otherBackupsThread;
+    pthread_create(&otherBackupsThread, NULL, &Servidor::handleOtherBackupsStatic, this);
 
+    connectToPrimary(primaryIp, primaryPort);
+
+    _isPrimary = false;
+
+    pthread_create(&_handleServer, NULL, &Servidor::handleServerStatic, this);
+}
+
+void Servidor::connectToPrimary(char* primaryIp, char* primaryPort) {
     _primaryServerSocket = new TCPSocket(primaryIp, primaryPort);
 
     if(!_primaryServerSocket->connectSocket()) {
@@ -58,10 +68,8 @@ Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
     }
 
     std::string sendPayload("0.0.0.0:");
-    sendPayload.append(port);
+    sendPayload.append(_serverSocket->getSocketPort());
     Pacote* enviado = new Pacote(Tipo::SERVIDOR, time(NULL), Comando::CONNECT, to_string(getpid()), sendPayload);
-    enviado->setIsAlive(true);
-    enviado->setIsPrimary(false);
     _primaryServerSocket->sendMessage(enviado->serializeAsString().c_str());
     char recvLine[MAX_MSG];
     memset(recvLine, 0, sizeof(recvLine));
@@ -76,12 +84,78 @@ Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
         _primaryServerSocket->closeSocket();
         exit(4);
     }
-    _isPrimary = false;
-
-    pthread_create(&_handleServer, NULL, &Servidor::handleServerStatic, this);
 }
 
-void* Servidor::ProcessKeyboardInputStatic(void* context){
+void* Servidor::handleOtherBackupsStatic(void* context) {
+    ((Servidor*)context)->handleOtherBackups();
+    pthread_exit(NULL);
+}
+
+void Servidor::handleOtherBackups() {
+    pthread_t handleBackup;
+    while(true) {
+        sem_wait(&_semaphorBackupFD);
+        StringUtils::printInfo("Esperando algum bakcup conectar... ");
+        _currentBackupFD = _serverSocket->acceptConnection();
+        StringUtils::printSuccess("aceitou conexão");
+        if(_currentBackupFD == -1) {
+            StringUtils::printDanger("Houve um problema ao conectar com o cliente");
+            sem_post(&_semaphorBackupFD);
+            continue;
+        }
+        char buffer[MAX_MSG];
+        memset(buffer, 0, sizeof(buffer));
+        _serverSocket->receive(_currentBackupFD, buffer, MAX_MSG);
+        Pacote* recebido = new Pacote(buffer);
+        if(recebido->getTipo() == Tipo::SERVIDOR) {
+        
+            pthread_t backupHandlerThread;
+            if (pthread_create(&backupHandlerThread, NULL, &Servidor::handleBackupStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
+                StringUtils::printDanger("Erro ao criar a Thread para lidar com o servidor.");
+            }
+            else 
+                StringUtils::printInfo("Servidor conectado...");
+
+            sem_post(&_semaphorBackupFD);
+        }
+    }
+}
+
+void* Servidor::handleBackupStatic(void* context) {
+    ((Servidor*)context)->handleBackup();
+    pthread_exit(NULL);
+}
+
+void Servidor::handleBackup() {
+    int backupFD = _currentBackupFD;
+    sem_post(&_semaphorBackupFD);
+
+    char rcvLine[MAX_MSG];
+    int bytesRead;
+    while((bytesRead = _serverSocket->receive(backupFD, rcvLine, MAX_MSG)) != -1) {
+        if(bytesRead == 0) {
+
+            break;
+        }
+        std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
+        
+        for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
+            switch (pacote->getComando())
+            {
+            case Comando::ELECTION:
+                
+                break;
+            
+            default:
+                break;
+            }
+        }
+
+    }
+    StringUtils::printDanger("Servidor desconectou ou caiu.");
+}
+
+void* Servidor::ProcessKeyboardInputStatic(void* context) {
     ((Servidor*)context)->ProcessKeyboardInput();
     pthread_exit(NULL);
 }
@@ -122,8 +196,6 @@ void Servidor::printPool() {
             StringUtils::printWithRandomPrefixColor(_pool[i].Ip, "IP:");
             StringUtils::printWithRandomPrefixColor(_pool[i].Port, "Port:");
             StringUtils::printWithRandomPrefixColor(to_string(_pool[i].FD), "FD:");
-            StringUtils::printWithRandomPrefixColor(_pool[i].isPrimary ? "Yes" : "No", "IsPrimary:");
-            StringUtils::printWithRandomPrefixColor(_pool[i].isAlive ? "Yes" : "No", "IsAlive:");
         }
     } 
     else {
@@ -158,7 +230,6 @@ void Servidor::start() {
         servidorPrimarioHandler();
     }
     else {
-
         pthread_t notificationHandler;
         pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
         while(true) {
@@ -186,33 +257,32 @@ void Servidor::start() {
                 
                 pthread_t serverHandlerThread;
                 if (pthread_create(&serverHandlerThread, NULL, &Servidor::handleServerStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
-                        StringUtils::printDanger("Erro ao criar a Thread para lidar com o servidor.");
-                        //
-                    }
-                    else 
-                        StringUtils::printInfo("Servidor conectado...");
+                    StringUtils::printDanger("Erro ao criar a Thread para lidar com o servidor.");
+                }
+                else 
+                    StringUtils::printInfo("Servidor conectado...");
 
+                sem_post(&_semaphorCurrentFD);
+            }
+            else if(recebido->getTipo() == Tipo::CLIENTE){
+                Pacote send;
+
+                send = handleClienteConnect(recebido->getUsuario(), _currentFD);
+                recebido->setPayload(to_string(_currentFD));
+                sendPacoteToAllServidoresBackup(*recebido);
+                _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
+
+                pthread_t clientHandlerThread;
+                if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
+                    StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
                     sem_post(&_semaphorCurrentFD);
                 }
-                else if(recebido->getTipo() == Tipo::CLIENTE){
-                    Pacote send;
-
-                    send = handleClienteConnect(recebido->getUsuario(), _currentFD);
-                    recebido->setPayload(to_string(_currentFD));
-                    sendPacoteToAllServidoresBackup(*recebido);
-                    _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
-
-                    pthread_t clientHandlerThread;
-                    if (pthread_create(&clientHandlerThread, NULL, &Servidor::handleClientStatic, this) != 0) { // Static func of class, this is necessary to keep the context of the class
-                        StringUtils::printDanger("Erro ao criar a Thread para lidar com o cliente.");
-                        sem_post(&_semaphorCurrentFD);
-                    }
-                    else 
-                        StringUtils::printInfo("Cliente conectado...");
-                }
-                else {
-                    sem_post(&_semaphorCurrentFD);
-                }
+                else 
+                    StringUtils::printInfo("Cliente conectado...");
+            }
+            else {
+                sem_post(&_semaphorCurrentFD);
+            }
         }
         _serverSocket->closeSocket();
     }
@@ -230,8 +300,12 @@ void Servidor::servidorPrimarioHandler() {
     while((bytesRead = _primaryServerSocket->receive(rcvLine, MAX_MSG)) != -1 ) {
         if(bytesRead == 0) {
             // Start election
-
-            restartAsPrimary();
+            if(election())
+                restartAsPrimary();
+            else {
+                sleep(1);
+                connectToPrimary(_primaryServerSocket->getSocketIp(), _primaryServerSocket->getSocketPort());
+            }
             
         }
         std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
@@ -311,6 +385,11 @@ void Servidor::restartAsPrimary() {
     start();
 }
 
+bool Servidor::election() {
+    //StringUtils::printBold(_serverSocket->getSocketPort());
+    return (strcmp(_serverSocket->getSocketPort(),"8082") == 0);
+}
+
 void Servidor::resetClientSockets() {
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         perfil->_socketDescriptors.clear();
@@ -343,8 +422,6 @@ Pacote Servidor::handleServerConnect(std::string pid, std::string payload, int F
     servidor.Ip = payload.substr(0, payload.find_first_of(":"));
     servidor.Port = payload.substr(payload.find_first_of(":") + 1);
     servidor.FD = FD;
-    servidor.isAlive = true;
-    servidor.isPrimary = false;
     _pool.push_back(servidor);
 
     return send;

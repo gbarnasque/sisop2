@@ -23,6 +23,7 @@ enum Comando {
     TESTE,
     POOL,
     PERFIS,
+    ELECTION,
     NO = -1
 };
 

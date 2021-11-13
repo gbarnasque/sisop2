@@ -17,8 +17,8 @@
 
 typedef void * (*THREADFUNCPTR)(void *);
 
-#define MAX_MSG 1024
-#define MAX_CLIENTS 5
+#define MAX_MSG 5*1024
+#define MAX_CLIENTS 20
 
 
 class Servidor {
@@ -43,6 +43,8 @@ class Servidor {
         sem_t _semaphorServerReplication;
         std::vector<ServerPerfil> _pool;
 
+        int _currentBackupFD;
+        sem_t _semaphorBackupFD;
         pthread_t _handleServer;
 
         void printPool();
@@ -81,7 +83,14 @@ class Servidor {
 
         static void* servidorPrimarioHandlerStatic(void* context);
         void servidorPrimarioHandler();
+        static void* handleOtherBackupsStatic(void* context);
+        void handleOtherBackups();
+        static void* handleBackupStatic(void* context);
+        void handleBackup();
+
         void sendPacoteToAllServidoresBackup(Pacote pacote);
         void restartAsPrimary();
         void resetClientSockets();
+        bool election();
+        void connectToPrimary(char* primaryIp, char* primaryPort);
 };
