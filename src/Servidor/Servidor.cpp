@@ -150,7 +150,6 @@ void Servidor::handleBackup() {
                 break;
             }
         }
-
     }
     StringUtils::printDanger("Servidor desconectou ou caiu.");
 }
@@ -205,6 +204,7 @@ void Servidor::printPool() {
 
 void* Servidor::handleNotificationsStatic(void* context) {
     ((Servidor*)context)->handleNotifications();
+    //StringUtils::printDanger("Não era para chegar aquiu");
     pthread_exit(NULL);
 }
 
@@ -212,9 +212,8 @@ void Servidor::handleNotifications() {
     while(true) {
         sem_wait(&_semaphorNotifications);
         StringUtils::printInfo("Enviando notificacoes aos usuarios conectados");
-        //printPerfis();
-        for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
-            sendNotificacoes(*perfil);
+        for(int i=0; i<_perfis.size(); i++) {
+            sendNotificacoes(&_perfis[i]);
         }
     }
 }
@@ -451,18 +450,6 @@ void Servidor::sendPacoteToAllClients(Pacote pacote) {
     sem_post(&_semaphorPerfisInclusion);
 }
 
-/*
-void Servidor::updateClientePool(int fd) {
-    for(int i=0; i<_pool.size(); i++) {
-        Pacote send;
-        send.setComando(Comando::POOL);
-        send.setUsuario(to_string(_pool[i].PID));
-        send.setPayload(_pool[i].Ip + ":" + _pool[i].Port);
-        _serverSocket->sendMessage(fd, send.serializeAsCharPointer());
-    }
-}
-*/
-
 void* Servidor::handleClientStatic(void* context) {
     ((Servidor*)context)->handleClient();
     pthread_exit(NULL);
@@ -482,43 +469,46 @@ void Servidor::handleClient() {
 
     memset(buffer, 0, sizeof(buffer));
     while( (n = _serverSocket->receive(clientFD, buffer, MAX_MSG)) > 0 ) {
-        Pacote* recebido = new Pacote(buffer);
-        StringUtils::printBold(recebido->serializeAsString());
-        switch (recebido->getComando())
-        {
-            case Comando::DISCONNECT:
-                handleDisconnect(recebido->getUsuario(), clientFD);
-                recebido->setPayload(to_string(clientFD));
-                sendPacoteToAllServidoresBackup(*recebido);
-                StringUtils::printWarning("Desconectando " + recebido->getUsuario() + " no socket " + to_string(clientFD) + ". Motivo: Usuario deslogado");
-                _serverSocket->closeSocket(clientFD);
-                pthread_exit(NULL);
-                break;
-            case Comando::SEND:
-                send = handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
-                if(send.getStatus() == Status::OK)
+        //StringUtils::printBold(buffer);
+        std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(buffer);
+        for(std::vector<Pacote>::iterator recebido = pacotes.begin(); recebido != pacotes.end(); recebido++) {
+            StringUtils::printBold(recebido->serializeAsString());
+            switch (recebido->getComando())
+            {
+                case Comando::DISCONNECT:
+                    handleDisconnect(recebido->getUsuario(), clientFD);
+                    recebido->setPayload(to_string(clientFD));
                     sendPacoteToAllServidoresBackup(*recebido);
-                sem_post(&_semaphorNotifications);
-                break;
-            case Comando::FOLLOW:
-                send = handleFollow(recebido->getPayload(), recebido->getUsuario());
-                if(send.getStatus() == Status::OK)
+                    StringUtils::printWarning("Desconectando " + recebido->getUsuario() + " no socket " + to_string(clientFD) + ". Motivo: Usuario deslogado");
+                    _serverSocket->closeSocket(clientFD);
+                    pthread_exit(NULL);
+                    break;
+                case Comando::SEND:
+                    send = handleSend(recebido->getUsuario(), recebido->getTimestamp(), recebido->getPayload(), recebido->getTamanhoPayload());
+                    if(send.getStatus() == Status::OK)
+                        sendPacoteToAllServidoresBackup(*recebido);
+                    sem_post(&_semaphorNotifications);
+                    break;
+                case Comando::FOLLOW:
+                    send = handleFollow(recebido->getPayload(), recebido->getUsuario());
+                    if(send.getStatus() == Status::OK)
+                        sendPacoteToAllServidoresBackup(*recebido);
+                    break;
+                case Comando::GETNOTIFICATIONS:
+                    sem_post(&_semaphorNotifications);
                     sendPacoteToAllServidoresBackup(*recebido);
-                break;
-            case Comando::GETNOTIFICATIONS:
-                sem_post(&_semaphorNotifications);
-                sendPacoteToAllServidoresBackup(*recebido);
-                break;
-            case Comando::TESTE:
-                printPerfis();
-                break;
-            default:
-                break;
-        }
-        
-        if(recebido->getComando() != Comando::GETNOTIFICATIONS) {
-            if(_serverSocket->sendMessage(clientFD, send.serializeAsString().c_str()) == -1)
-                StringUtils::printDanger("erro ao enviar a mensagem de volta");
+                    break;
+                case Comando::TESTE:
+                    printPerfis();
+                    break;
+                default:
+                    break;
+            }
+            
+            if(recebido->getComando() != Comando::GETNOTIFICATIONS) {
+                if(_serverSocket->sendMessage(clientFD, send.serializeAsString().c_str()) == -1)
+                    StringUtils::printDanger("erro ao enviar a mensagem de volta");
+            }
         }
         
         memset(buffer, 0, sizeof(buffer));
@@ -676,19 +666,25 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
     p.setComando(Comando::NO);
     p.setPayload("Mensagem enviada com sucesso!");
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
+        //StringUtils::printBold("Achou perfil from");
         if(perfil->_usuario == from) {
             sem_wait(&perfil->_semaphorePerfil);
             for(std::vector<Notificacao>::iterator notificacao = perfil->_notificacoesRecebidas.begin(); notificacao != perfil->_notificacoesRecebidas.end(); notificacao++) {
                 if(notificacao->_id == idNotificacao) {
+                    //StringUtils::printBold("Achou notificacao");
                     Pacote* pacote = new Pacote(Tipo::DATA, notificacao->_timestamp, Comando::NOTIFICATION, from, notificacao->_mensagem);
                     for(std::vector<Perfil>::iterator p = _perfis.begin(); p != _perfis.end(); p++) {
                         if(p->_usuario == perfil->_usuario)
                             continue;
+                       // StringUtils::printInfo("Adiquirindo lock do perfil" + p->_usuario);
                         sem_wait(&p->_semaphorePerfil);
+                        //StringUtils::printInfo("Adquirido lock do perfil" + p->_usuario);
                         for(std::vector<std::pair<std::string,int>>::iterator par = p->_notificacoesPendentes.begin(); par != p->_notificacoesPendentes.end(); par++) {
                             if(par->second == idNotificacao) {
+                                //StringUtils::printBold("Achou Notificacao no perfil to");
                                 bool sent = false;
                                 for(int i=0; i<p->_socketDescriptors.size(); i++) {
+                                    //StringUtils::printDanger("Enviando notificacao");
                                     if(_isPrimary) 
                                         _serverSocket->sendMessage(p->_socketDescriptors[i], pacote->serializeAsString().c_str());
                                     sent = true;
@@ -700,7 +696,9 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
                                 }
                             }
                         }
+                        //StringUtils::printInfo("Liberando lock do perfil" + p->_usuario);
                         sem_post(&p->_semaphorePerfil);
+                        //StringUtils::printInfo("Liberado lock do perfil" + p->_usuario);
                     }
                     if(notificacao->_quantidadeSeguidoresAReceber == 0) {
                         perfil->_notificacoesRecebidas.erase(notificacao);
@@ -716,14 +714,18 @@ Pacote Servidor::sendNotificacao(std::string from, int idNotificacao) {
 }
 
 
-void Servidor::sendNotificacoes(Perfil to) {
+void Servidor::sendNotificacoes(Perfil* to) {
     std::vector<std::pair<std::string, int>> notificacoes;
-    sem_wait(&to._semaphorePerfil);
-    for(int i=0; i < to._notificacoesPendentes.size(); i++ ) {
-        notificacoes.push_back(std::make_pair(to._notificacoesPendentes[i].first, to._notificacoesPendentes[i].second));
+    //StringUtils::printDanger("Tentando adicionar notificacao DO USER: " + to->_usuario);
+    sem_wait(&to->_semaphorePerfil);
+    //StringUtils::printDanger("Adquirido lock do perfil " + to->_usuario);
+    for(int i=0; i < to->_notificacoesPendentes.size(); i++ ) {
+        notificacoes.push_back(std::make_pair(to->_notificacoesPendentes[i].first, to->_notificacoesPendentes[i].second));
     }
-    sem_post(&to._semaphorePerfil);
-    
+    //StringUtils::printDanger("Liberando lock do perfil " + to->_usuario);
+    sem_post(&to->_semaphorePerfil);
+    //StringUtils::printDanger("Adicionadas notificacoes");
+
     for(int i=0; i < notificacoes.size(); i++ ) {
         sendNotificacao(notificacoes[i].first, notificacoes[i].second);
     }

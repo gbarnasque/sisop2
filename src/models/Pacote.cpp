@@ -104,26 +104,6 @@ int Pacote:: getTamanhoPayload() {
     return _tamanhoPayload;
 }
 
-bool Pacote::getIsAlive() {
-    return _isAlive;
-}
-void Pacote::setIsAlive(bool isAlive) {
-    _isAlive = isAlive;
-}
-void Pacote::setIsAlive(std::string isAlive) {
-    _isAlive = (isAlive == "true");
-}
-
-bool Pacote::getIsPrimary() {
-    return _isPrimary;
-}
-void Pacote::setIsPrimary(bool isPrimary) {
-    _isPrimary = isPrimary;
-}
-void Pacote::setIsPrimary(std::string isPrimary) {
-    _isPrimary = (isPrimary == "true");
-}
-
 
 template <typename T>
 std::string Pacote::generateInt(string identificador, T i, bool end) {
@@ -179,8 +159,6 @@ string Pacote::serializeAsString() {
     pacoteSerializadoString.append(generateInt<time_t>("timestamp", _timestamp));
     pacoteSerializadoString.append(generateInt<Comando>("comando", _comando));
     pacoteSerializadoString.append(generateString("usuario", _usuario));
-    pacoteSerializadoString.append(generateBool("isAlive", _isAlive));
-    pacoteSerializadoString.append(generateBool("isPrimary", _isPrimary));
     pacoteSerializadoString.append(generateString("payload", _payload, true));
     pacoteSerializadoString.append("}");
 
@@ -227,12 +205,6 @@ void Pacote::deserialize(T pacoteSerializado) {
             }
             else if(nome == "status") {
                 setStatus(static_cast<Status>(stoi(valor)));
-            }
-            else if(nome == "isAlive") {
-                setIsAlive(valor);
-            }
-            else if(nome == "isPrimary") {
-                setIsPrimary(valor);
             }
 
             pacoteSerializadoString = pacoteSerializadoString.substr(terminador);

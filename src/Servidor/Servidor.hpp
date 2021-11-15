@@ -36,7 +36,7 @@ class Servidor {
         void fillFromFile();
         void notifyAllConnectedClients();
         Pacote sendNotificacao(std::string from, int idNotificacao);
-        void sendNotificacoes(Perfil to);
+        void sendNotificacoes(Perfil* to);
 
         TCPSocket* _primaryServerSocket;
         bool _isPrimary;
@@ -79,7 +79,6 @@ class Servidor {
         void handleServer();
         Pacote handleServerConnect(std::string pid, std::string payload, int FD);
         void sendPacoteToAllClients(Pacote pacote);
-        //void updateClientePool(int fd);
 
         static void* servidorPrimarioHandlerStatic(void* context);
         void servidorPrimarioHandler();

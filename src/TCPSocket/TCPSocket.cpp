@@ -1,9 +1,9 @@
 #include "TCPSocket.hpp"
 
 TCPSocket::TCPSocket() {
-    StringUtils::printInfo("Criando socket...1");
+    //StringUtils::printInfo("Criando socket...1");
     if (!createSocket()) {
-        StringUtils::printDanger("Problema ao criar o socket!");
+        //StringUtils::printDanger("Problema ao criar o socket!");
         exit(2);
     }
     int t = 1;
@@ -21,16 +21,16 @@ TCPSocket::TCPSocket() {
     _serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     _serverAddress.sin_port = htons(DEFAULT_PORT);
 
-    StringUtils::printSuccess("Socket criada com sucesso");
+    //StringUtils::printSuccess("Socket criada com sucesso");
 }
 
 TCPSocket::TCPSocket(char* serverIp, char* serverPort) {
     // https://man7.org/linux/man-pages/man2/socket.2.html
     // On success, a file descriptor for the new socket is returned. On error, -1 is returned
     
-    StringUtils::printInfo("Criando socket...2");
+    //StringUtils::printInfo("Criando socket...2");
     if (!createSocket()) {
-        StringUtils::printDanger("Problema ao criar o socket!");
+        //StringUtils::printDanger("Problema ao criar o socket!");
         exit(2);
     }
     int t = 1;
@@ -51,7 +51,7 @@ TCPSocket::TCPSocket(char* serverIp, char* serverPort) {
     _serverAddress.sin_family = AF_INET;
     _serverAddress.sin_addr.s_addr = (serverIp != NULL) ? htonl(inet_addr(serverIp)) : htonl(INADDR_ANY);
     _serverAddress.sin_port = htons(atoi(_port));
-    StringUtils::printSuccess("Socket criada com sucesso");    
+    //StringUtils::printSuccess("Socket criada com sucesso");    
 }
 
 
@@ -59,9 +59,9 @@ TCPSocket::TCPSocket(const char* serverIp, const char* serverPort) {
     // https://man7.org/linux/man-pages/man2/socket.2.html
     // On success, a file descriptor for the new socket is returned. On error, -1 is returned
     
-    StringUtils::printInfo("Criando socket...3");
+    //StringUtils::printInfo("Criando socket...3");
     if (!createSocket()) {
-        StringUtils::printDanger("Problema ao criar o socket!");
+        //StringUtils::printDanger("Problema ao criar o socket!");
         exit(2);
     }
     int t = 1;
@@ -83,7 +83,7 @@ TCPSocket::TCPSocket(const char* serverIp, const char* serverPort) {
     _serverAddress.sin_family = AF_INET;
     _serverAddress.sin_addr.s_addr = (serverIp != NULL) ? htonl(inet_addr(serverIp)) : htonl(INADDR_ANY);
     _serverAddress.sin_port = htons(atoi(_port));
-    StringUtils::printSuccess("Socket criada com sucesso");
+    //StringUtils::printSuccess("Socket criada com sucesso");
 }
 
 bool TCPSocket::createSocket() {
@@ -117,7 +117,7 @@ int TCPSocket::acceptConnection() {
 bool TCPSocket::connectSocket() {
     string ip(_ip);
     string port(_port);
-    StringUtils::printInfo("Tentando conectar ao servidor " + ip + ":" + port);
+    //StringUtils::printInfo("Tentando conectar ao servidor " + ip + ":" + port);
     return (connect(_serverFD, (struct sockaddr *) &_serverAddress, sizeof(_serverAddress)) == 0);
 }
 

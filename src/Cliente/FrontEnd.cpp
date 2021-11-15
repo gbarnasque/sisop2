@@ -9,32 +9,33 @@ FrontEnd::FrontEnd(char* serverIp, char* serverPort, char* user) {
     sem_init(&_semaphorSendPacote, 0, 1);
 }
 
-void FrontEnd::connectToServer(const char* serverIp, const char* serverPort) {
+bool FrontEnd::connectToServer(const char* serverIp, const char* serverPort) {
+    
     char recvLine[MAX_MSG];
     _socket = new TCPSocket(serverIp, serverPort);
 
     if(!_socket->connectSocket()) {
-        StringUtils::printDanger("Problema ao conectar ao servidor");
-        exit(3);
+        //StringUtils::printDanger("Problema ao conectar ao servidor");
+        return false;
     }
     Pacote* enviado = new Pacote(Tipo::CLIENTE, time(NULL), Comando::CONNECT, _usuario);
-    _socket->sendMessage(enviado->serializeAsString().c_str());
+    _socket->sendMessage(enviado->serializeAsCharPointer());
 
     memset(recvLine, 0, sizeof(recvLine));
     _socket->receive(recvLine, MAX_MSG);
 
     Pacote* recebido = new Pacote(recvLine);
-    if(recebido->getStatus() == Status::OK) {
-        StringUtils::printSuccess(recebido->getPayload());
-        enviado->setComando(Comando::GETNOTIFICATIONS);
-        _socket->sendMessage(enviado->serializeAsString().c_str());
-    }
-    else {
-        StringUtils::printDanger(recebido->getPayload());
+    if(recebido->getStatus() != Status::OK) {
+        //StringUtils::printDanger(recebido->getPayload());
         _socket->closeSocket();
-        exit(4);
+        return false;
     }
-    
+
+    //StringUtils::printSuccess(recebido->getPayload());
+    enviado->setComando(Comando::GETNOTIFICATIONS);
+    _socket->sendMessage(enviado->serializeAsCharPointer());
+
+    return true;
 }
 
 void FrontEnd::receiveNotifications() {
@@ -45,17 +46,23 @@ void FrontEnd::receiveNotifications() {
     int bytesRead;
     while((bytesRead = _socket->receive(rcvLine, MAX_MSG)) != -1 ) {
         if(bytesRead == 0) {
+            _serverDown = true;
             sem_wait(&_semaphorSendPacote);
             memset(rcvLine, 0, sizeof(rcvLine));
             sleep(2);
             _socket->closeSocket();
-            connectToServer(_socket->getSocketIp(), _socket->getSocketPort());
+            while(!connectToServer(_socket->getSocketIp(), _socket->getSocketPort())) {
+                sleep(1);
+            };
             StringUtils::printSuccess("Reconectado no servidor.");
             sem_post(&_semaphorSendPacote);
+            _serverDown = false;
+            sendPacotes();
         }
         std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
         
         for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
+            //StringUtils::printBold(pacote->serializeAsString());
             if(pacote->getStatus() == Status::OK){
                 ServerPerfil servidorBackup;
                 std::string payload = pacote->getPayload();
@@ -68,15 +75,6 @@ void FrontEnd::receiveNotifications() {
                         StringUtils::printDanger(pacote->getPayload());
                         handleExit();
                         break;
-                        */
-                    /*
-                    case Comando::POOL:
-                        servidorBackup.PID = (pid_t)atoi(pacote->getUsuario().c_str());
-                        servidorBackup.Ip = payload.substr(0, payload.find_first_of(":"));
-                        servidorBackup.Port = payload.substr(payload.find_first_of(":") + 1);
-                        servidorBackup.isPrimary = pacote->getIsPrimary();
-                        servidorBackup.isAlive = pacote->getIsAlive();                        
-                        _servidores.push_back(servidorBackup);
                         */
                         break;
                     default:
@@ -96,24 +94,6 @@ void FrontEnd::receiveNotifications() {
     StringUtils::printDanger("O servidor encerrou a conexão");
     exit(4);   
 }
-/*
-void FrontEnd::printPool() {
-    if(_servidores.size() != 0) {
-        for(int i=0; i<_servidores.size(); i++) {
-            StringUtils::printBold("Servidor " + to_string(i) + ":");
-            StringUtils::printWithRandomPrefixColor(to_string(_servidores[i].PID), "PID:");
-            StringUtils::printWithRandomPrefixColor(_servidores[i].Ip, "IP:");
-            StringUtils::printWithRandomPrefixColor(_servidores[i].Port, "Port:");
-            StringUtils::printWithRandomPrefixColor(to_string(_servidores[i].FD), "FD:");
-            StringUtils::printWithRandomPrefixColor(_servidores[i].isPrimary ? "Yes" : "No", "IsPrimary:");
-            StringUtils::printWithRandomPrefixColor(_servidores[i].isAlive ? "Yes" : "No", "IsAlive:");
-        }
-    } 
-    else {
-        StringUtils::printInfo("Cliente ainda não possui servidores backup listados");
-    }
-}
-*/
 
 void FrontEnd::handleExit() {
     Pacote* p = new Pacote(Tipo::COMMAND, time(NULL), Comando::DISCONNECT, _usuario);
@@ -131,7 +111,17 @@ void FrontEnd::sendPacote(Pacote pacote) {
 
 void FrontEnd::sendPacote(Comando comando, std::string payload) {
     Pacote* p = new Pacote(Tipo::COMMAND, time(NULL), comando, _usuario, payload);
-    sem_wait(&_semaphorSendPacote);
-    _socket->sendMessage(p->serializeAsString().c_str());
-    sem_post(&_semaphorSendPacote);
+    if(!_serverDown) {
+        sendPacote(*p);
+    }
+    else {
+        _pacotes.push_back(*p);
+    }
+}
+
+void FrontEnd::sendPacotes() {
+    for(int i=0; i<_pacotes.size(); i++) {
+        _socket->sendMessage(_pacotes[i].serializeAsCharPointer());
+    }
+    _pacotes.clear();
 }
