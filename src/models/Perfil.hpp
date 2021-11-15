@@ -14,6 +14,7 @@ typedef struct server_perfil {
     string Ip;
     string Port;
     int FD;
+    bool isAlive;
 } ServerPerfil;
 
 class Perfil {

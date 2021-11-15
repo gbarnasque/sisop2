@@ -24,6 +24,8 @@ enum Comando {
     POOL,
     PERFIS,
     ELECTION,
+    ANSWER,
+    COORDINATOR,
     NO = -1
 };
 
