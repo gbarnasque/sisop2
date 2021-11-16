@@ -8,7 +8,9 @@
 
 enum Tipo {
     DATA,
-    COMMAND
+    COMMAND,
+    CLIENTE,
+    SERVIDOR
 };
 
 enum Comando {
@@ -19,6 +21,11 @@ enum Comando {
     NOTIFICATION,
     GETNOTIFICATIONS,
     TESTE,
+    POOL,
+    PERFIS,
+    ELECTION,
+    ANSWER,
+    COORDINATOR,
     NO = -1
 };
 
@@ -40,8 +47,8 @@ class Pacote {
         template <typename T>
         std::string generateInt(string identificador, T i, bool end = false);
         std::string generateString(string identificador, string s, bool end = false);
+        std::string generateBool(string identificador, bool b, bool end = false);
         
-
     public:
         Pacote();
         //~Pacote();
@@ -72,4 +79,6 @@ class Pacote {
         void deserialize(T pacoteSerializado);
 
         static std::vector<Pacote> getMultiplosPacotes(const char* pacotesSerializados);
+        static Comando getComandoFromLine(std::string line);
+        static std::string removeComandoFromLine(std::string line);
 };

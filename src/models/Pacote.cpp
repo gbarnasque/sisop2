@@ -126,21 +126,23 @@ std::string Pacote::generateString(string identificador, string s, bool end) {
         newString.append(",");
 
     return newString;
+}
+
+std::string Pacote::generateBool(string identificador, bool b, bool end) {
+    string newString;
+    newString.append("\"").append(identificador).append("\":");
+    newString.append(b ? "true" : "false");
+
+    if(!end)
+        newString.append(",");
+
+    return newString;
 } 
 
 char* Pacote::serializeAsCharPointer() {
-    std::string pacoteSerializadoString;
+    std::string pacoteSerializadoString = serializeAsString();
     char* pacoteSerializado;
     
-    pacoteSerializadoString.append("{");
-    pacoteSerializadoString.append(generateInt<Tipo>("tipo", _tipo));
-    pacoteSerializadoString.append(generateInt<Status>("status", _status));
-    pacoteSerializadoString.append(generateInt<time_t>("timestamp", _timestamp));
-    pacoteSerializadoString.append(generateInt<Comando>("comando", _comando));
-    pacoteSerializadoString.append(generateString("usuario", _usuario));
-    pacoteSerializadoString.append(generateString("payload", _payload, true));
-    pacoteSerializadoString.append("}");
-
     pacoteSerializado = (char*)malloc(sizeof(char)*pacoteSerializadoString.length()+1);
     
     strcpy(pacoteSerializado, pacoteSerializadoString.c_str());
@@ -162,6 +164,7 @@ string Pacote::serializeAsString() {
 
     return pacoteSerializadoString;
 }
+
 template <typename T>
 void Pacote::deserialize(T pacoteSerializado) {
     std::string nome;
@@ -221,4 +224,36 @@ std::vector<Pacote> Pacote::getMultiplosPacotes(const char* pacotesSerializados)
     }
     
     return pacotes;
+}
+
+Comando Pacote::getComandoFromLine(std::string line) {
+    size_t espaco = line.find_first_of(" ");
+    if(espaco == std::string::npos) {
+        return Comando::NO;
+    }
+    std::string comando = line.substr(0, espaco);
+    if(comando == "SEND") {
+        return Comando::SEND;
+    }
+    else if(comando == "FOLLOW") {
+        return Comando::FOLLOW;
+    }
+    else if(comando == "TESTE") {
+        return Comando::TESTE;
+    }
+    else if(comando == "POOL"){
+        return Comando::POOL;
+    }
+    else if(comando == "PERFIS") {
+        return Comando::PERFIS;
+    }
+    else {
+        return Comando::NO;
+    }
+}
+
+std::string Pacote::removeComandoFromLine(std::string line) {
+    size_t espaco = line.find_first_of(" ");
+    std::string newLine = line.substr(espaco+1);
+    return newLine;
 }

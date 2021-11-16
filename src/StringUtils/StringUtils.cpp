@@ -24,6 +24,13 @@ string StringUtils::_bright_magenta = "\033[95m";
 string StringUtils::_bright_cyan = "\033[96m";
 string StringUtils::_white = "\033[97m";
 
+void StringUtils::setPrint(bool p) {
+    _print = p;
+}
+bool StringUtils::getPrint() {
+    return _print;
+}
+
 string StringUtils::getColorString(Color colorCode) {
     std::string color;
     switch (colorCode)

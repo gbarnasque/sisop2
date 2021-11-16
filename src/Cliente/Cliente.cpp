@@ -1,44 +1,14 @@
 #include "Cliente.hpp"
 
 Cliente::Cliente(char* serverIp, char* serverPort, char* user) {
-    char recvLine[MAX_MSG];
-
-    _socket = new TCPSocket(serverIp, serverPort);
-    
-    if(!_socket->connectSocket()) {
-        StringUtils::printDanger("Problema ao conectar ao servidor");
-        exit(3);
-    }
-    std::string usuario(user);
-    _usuario = usuario;
-    Pacote* enviado = new Pacote(Tipo::COMMAND, time(NULL), Comando::CONNECT, usuario);
-    _socket->sendMessage(enviado->serializeAsString().c_str());
-    
-    memset(recvLine, 0, sizeof(recvLine));
-    _socket->receive(recvLine, MAX_MSG);
-
-    Pacote* recebido = new Pacote(recvLine);
-    if(recebido->getStatus() == Status::OK) {
-        StringUtils::printSuccess(recebido->getPayload());
-    }
-    else {
-        StringUtils::printDanger(recebido->getPayload());
-        _socket->closeSocket();
-        exit(4);
-    }
-    
-    enviado->setComando(Comando::GETNOTIFICATIONS);
-    _socket->sendMessage(enviado->serializeAsString().c_str());
+    std::string userString(user);
+    _usuario = userString;
+    _frontEnd = new FrontEnd(serverIp, serverPort, user);
 }
 
 void Cliente::handleExit() {
     StringUtils::printWarning("Saindo do aplicativo cliente");
-    Pacote* p = new Pacote();
-    p->setComando(Comando::DISCONNECT);
-    p->setStatus(Status::OK);
-    p->setUsuario(_usuario);
-    _socket->sendMessage(p->serializeAsString().c_str());
-    _socket->closeSocket();
+    _frontEnd->handleExit();
     exit(0);
 }
 
@@ -49,13 +19,75 @@ void* Cliente::receiveNotificationsStatic(void* context){
 
 //recebe as notificações enviadas pelo servidor dos
 //perfis que o usuário segue e as imprime na tela
-void Cliente::receiveNotifications(){
+void Cliente::receiveNotifications() {
+    _frontEnd->receiveNotifications();
+}
 
-    StringUtils::printInfo("[RECEIVENOTIFICATIONS] Thread2 iniciada!");
+void* Cliente::ProcessKeyboardInputStatic(void* context){
+    ((Cliente*)context)->ProcessKeyboardInput();
+    pthread_exit(NULL);
+}
+
+void Cliente::ProcessKeyboardInput(){
+    StringUtils::printInfo("[PROCESSKEYBOARDINPUT] Esperando pelo input do usuario...");
+    while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
+        //Pacote* send;
+
+        StringUtils::removeNewLineAtEnd(sendLine);
+        std::string sendLineString(sendLine);
+        Comando comando = Pacote::getComandoFromLine(sendLineString);
+        sendLineString = Pacote::removeComandoFromLine(sendLineString);
+        switch (comando)
+        {
+            case Comando::FOLLOW:
+                if(!lineEstaOK(sendLineString, comando)) {
+                    StringUtils::printDanger("O perfil a seguir deve conter entre 4 e 20 caracteres e comecar com @. E, lembre-se, voce nao pode se seguir");
+                    break;
+                }
+
+            case Comando::SEND:
+                if(!lineEstaOK(sendLineString, comando)) {
+                    StringUtils::printDanger("Sua mensagem possui mais do que os 128 caracteres permitidos");
+                    break;
+                }
+            case Comando::TESTE:    
+                _frontEnd->sendPacote(comando, sendLineString);
+                break;
+            case Comando::NO:
+            default:
+                StringUtils::printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"");
+                break;
+        }
+        memset(sendLine, 0, sizeof(sendLine));
+        StringUtils::printInfo("Esperando pelo input do usuario...");
+    }
+    handleExit();
+}
+
+//Cria duas threads para o funcionamento do cliente
+//A primeira detecta input do usuário e o processa, enviando-o para o servidor conforme necessário
+//A segunda espera receber pacotes do servidor e imprime as mensagens na tela
+void Cliente::interact() {
+
+    pthread_t thread1, thread2, thread3;
+
+    pthread_create(&thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
+    pthread_create(&thread2, NULL, Cliente::receiveNotificationsStatic, this);
+
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+}
+
+void* Cliente::receiveMessagesOtherServersStatic(void* context) {
+    ((Cliente*)context)->receiveMessagesOtherServers();
+    pthread_exit(NULL);
+}
+void Cliente::receiveMessagesOtherServers() {
+    StringUtils::printInfo("[MESSAGESOTHERSERVERS] Thread3 iniciada!");
     
     char rcvLine[MAX_MSG];
     memset(rcvLine, 0, sizeof(rcvLine));
-    while(_socket->receive(rcvLine, MAX_MSG) != -1) {
+    while(_socket->receive(4, rcvLine, MAX_MSG) != -1) {
         std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
         
         for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
@@ -84,94 +116,10 @@ void Cliente::receiveNotifications(){
         memset(rcvLine, 0, sizeof(rcvLine));
     }
     _socket->closeSocket();
-    StringUtils::printDanger("O servidor encerrou a conexão");
+    StringUtils::printDanger("O servidor encerrou a conexão b");
     exit(4);
 }
 
-void* Cliente::ProcessKeyboardInputStatic(void* context){
-    ((Cliente*)context)->ProcessKeyboardInput();
-    pthread_exit(NULL);
-}
-
-void Cliente::ProcessKeyboardInput(){
-    StringUtils::printInfo("[PROCESSKEYBOARDINPUT] Esperando pelo input do usuario...");
-    while(fgets(sendLine, MAX_MSG, stdin) != NULL) {
-        Pacote* send;
-
-        StringUtils::removeNewLineAtEnd(sendLine);
-        std::string sendLineString(sendLine);
-        Comando comando = getComandoFromLine(sendLineString);
-        sendLineString = removeComandoFromLine(sendLineString);
-        switch (comando)
-        {
-            case Comando::FOLLOW:
-                if(!lineEstaOK(sendLineString, comando)) {
-                    StringUtils::printDanger("O perfil a seguir deve conter entre 4 e 20 caracteres e comecar com @. E, lembre-se, voce nao pode se seguir");
-                    break;
-                }
-
-            case Comando::SEND:
-                if(!lineEstaOK(sendLineString, comando)) {
-                    StringUtils::printDanger("Sua mensagem possui mais do que os 128 caracteres permitidos");
-                    break;
-                }
-            case Comando::TESTE:    
-                send = new Pacote(Tipo::COMMAND, time(NULL), comando, _usuario, sendLineString);
-                _socket->sendMessage(send->serializeAsString().c_str());
-                break;
-            
-            case Comando::NO:
-            default:
-                StringUtils::printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"");
-                break;
-        }
-        memset(sendLine, 0, sizeof(sendLine));
-        StringUtils::printInfo("Esperando pelo input do usuario...");
-    }
-    handleExit();
-}
-
-//Cria duas threads para o funcionamento do cliente
-//A primeira detecta input do usuário e o processa, enviando-o para o servidor conforme necessário
-//A segunda espera receber pacotes do servidor e imprime as mensagens na tela
-void Cliente::interact() {
-
-    pthread_t thread1, thread2;
-
-
-    pthread_create(&thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
-    pthread_create(&thread2, NULL, Cliente::receiveNotificationsStatic, this);
-
-    pthread_join(thread1, NULL);
-    pthread_join(thread2, NULL);
-}
-
-
-Comando Cliente::getComandoFromLine(std::string line) {
-    size_t espaco = line.find_first_of(" ");
-    if(espaco == std::string::npos) {
-        return Comando::NO;
-    }
-    std::string comando = line.substr(0, espaco);
-    if(comando == "SEND") {
-        return Comando::SEND;
-    }
-    else if(comando == "FOLLOW") {
-        return Comando::FOLLOW;
-    }
-    else if(comando == "TESTE") {
-        return Comando::TESTE;
-    }
-    else {
-        return Comando::NO;
-    }
-}
-
-std::string Cliente::removeComandoFromLine(std::string line) {
-    size_t espaco = line.find_first_of(" ");
-    std::string newLine = line.substr(espaco+1);
-    return newLine;
-}
 
 bool Cliente::lineEstaOK(std::string line, Comando c) {
     switch (c)

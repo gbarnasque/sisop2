@@ -62,7 +62,9 @@ class StringUtils {
         static string _bright_gray;
 
         static string getColorString(Color colorCode);
-        
+
+        bool _print; 
+
     public:
         static void print(string s, Color colorCode, bool bold);
         static void printBold(string s);
@@ -80,4 +82,7 @@ class StringUtils {
         static char* removeNewLineAtEnd(char* s);
 
         static void testColors();
+
+        void setPrint(bool p);
+        bool getPrint();
 };
