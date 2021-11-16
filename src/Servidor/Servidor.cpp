@@ -61,8 +61,9 @@ bool Servidor::connectToPrimary(char* primaryIp, char* primaryPort) {
         StringUtils::printDanger("Problema ao conectar ao servidor");
         return false;
     }
-
-    std::string sendPayload("0.0.0.0:");
+    
+    std::string sendPayload(_serverSocket->getSocketIp());
+    sendPayload.append(":");
     sendPayload.append(_serverSocket->getSocketPort());
     Pacote* enviado = new Pacote(Tipo::SERVIDOR, time(NULL), Comando::CONNECT, to_string(getpid()), sendPayload);
     _primaryServerSocket->sendMessage(enviado->serializeAsString().c_str());
@@ -150,14 +151,12 @@ void Servidor::start() {
             _serverSocket->receive(_currentFD, buffer, MAX_MSG);
             Pacote* recebido = new Pacote(buffer);
             if(recebido->getTipo() == Tipo::SERVIDOR) {
-                if(_isPrimary) {
-                    StringUtils::printInfo(recebido->serializeAsString());
-                    Pacote send;
-                    sendPacoteToAllServidoresBackup(*recebido);
-                    send = handleServerConnect(recebido->getUsuario(), recebido->getPayload(), _currentFD);
-                    _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
-                    sem_post(&_semaphorCurrentFD);
-                }
+                StringUtils::printInfo(recebido->serializeAsString());
+                Pacote send;
+                sendPacoteToAllServidoresBackup(*recebido);
+                send = handleServerConnect(recebido->getUsuario(), recebido->getPayload(), _currentFD);
+                _serverSocket->sendMessage(_currentFD, send.serializeAsCharPointer());
+                sem_post(&_semaphorCurrentFD);
             }
             else if(recebido->getTipo() == Tipo::CLIENTE){
                 Pacote send;
@@ -404,7 +403,7 @@ void Servidor::handleClient() {
             
             if(recebido->getComando() != Comando::GETNOTIFICATIONS) {
                 if(_serverSocket->sendMessage(clientFD, send.serializeAsString().c_str()) == -1)
-                    StringUtils::printDanger("erro ao enviar a mensagem de volta");
+                    StringUtils::printDanger("Erro ao enviar a mensagem de volta");
             }
         }
         
@@ -460,8 +459,8 @@ Pacote Servidor::handleClienteConnect(string usuario, int socketDescriptor) {
     sem_post(&_semaphorPerfisInclusion);
     // fecha socket e termina a thread caso usuario tenha sido "deslogado"
     if(_isPrimary && send.getStatus() == Status::ERROR) {
-        _serverSocket->sendMessage(socketDescriptor, send.serializeAsString().c_str());
-        StringUtils::printDanger("Fechando socket " + socketDescriptor);
+        _serverSocket->sendMessage(socketDescriptor, send.serializeAsCharPointer());
+        //StringUtils::printDanger("Fechando socket " + socketDescriptor);
         _serverSocket->closeSocket(socketDescriptor);
         pthread_exit(NULL);
     }

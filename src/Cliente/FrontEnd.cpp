@@ -57,7 +57,7 @@ void FrontEnd::receiveNotifications() {
                    exit(5);
                 }
             };
-            StringUtils::printSuccess("Reconectado no servidor");
+            //StringUtils::printSuccess("Reconectado no servidor");
             sem_post(&_semaphorSendPacote);
             _serverDown = false;
             sendPacotes();
