@@ -15,7 +15,6 @@ bool FrontEnd::connectToServer(const char* serverIp, const char* serverPort) {
     _socket = new TCPSocket(serverIp, serverPort);
 
     if(!_socket->connectSocket()) {
-        //StringUtils::printDanger("Problema ao conectar ao servidor");
         return false;
     }
     Pacote* enviado = new Pacote(Tipo::CLIENTE, time(NULL), Comando::CONNECT, _usuario);
@@ -26,12 +25,10 @@ bool FrontEnd::connectToServer(const char* serverIp, const char* serverPort) {
 
     Pacote* recebido = new Pacote(recvLine);
     if(recebido->getStatus() != Status::OK) {
-        //StringUtils::printDanger(recebido->getPayload());
         _socket->closeSocket();
         return false;
     }
 
-    //StringUtils::printSuccess(recebido->getPayload());
     enviado->setComando(Comando::GETNOTIFICATIONS);
     _socket->sendMessage(enviado->serializeAsCharPointer());
 
@@ -49,12 +46,18 @@ void FrontEnd::receiveNotifications() {
             _serverDown = true;
             sem_wait(&_semaphorSendPacote);
             memset(rcvLine, 0, sizeof(rcvLine));
-            sleep(2);
+            usleep(TIME_TO_RETRY);
             _socket->closeSocket();
+            _triesToConnect = 0;
             while(!connectToServer(_socket->getSocketIp(), _socket->getSocketPort())) {
-                sleep(1);
+                usleep(TIME_TO_RETRY); // microssegundos = milissegundos*1000
+                _triesToConnect++;
+                if(_triesToConnect == MAX_RETRIES) {
+                   StringUtils::printDanger("Erro ao tentar reconectar ao servidor após " + to_string(MAX_RETRIES) + " vezes!");
+                   exit(5);
+                }
             };
-            StringUtils::printSuccess("Reconectado no servidor.");
+            StringUtils::printSuccess("Reconectado no servidor");
             sem_post(&_semaphorSendPacote);
             _serverDown = false;
             sendPacotes();
@@ -62,7 +65,6 @@ void FrontEnd::receiveNotifications() {
         std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
         
         for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
-            //StringUtils::printBold(pacote->serializeAsString());
             if(pacote->getStatus() == Status::OK){
                 ServerPerfil servidorBackup;
                 std::string payload = pacote->getPayload();
@@ -71,11 +73,6 @@ void FrontEnd::receiveNotifications() {
                     case Comando::NOTIFICATION:
                         StringUtils::printWithRandomPrefixColor(pacote->getPayload(), pacote->getUsuario() + ":");
                         break;
-                    /*case Comando::DISCONNECT:
-                        StringUtils::printDanger(pacote->getPayload());
-                        handleExit();
-                        break;
-                        */
                         break;
                     default:
                         if(pacote->getPayload().size() != 0);

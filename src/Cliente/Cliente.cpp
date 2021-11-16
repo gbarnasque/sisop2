@@ -51,14 +51,8 @@ void Cliente::ProcessKeyboardInput(){
                     break;
                 }
             case Comando::TESTE:    
-                //send = new Pacote(Tipo::COMMAND, time(NULL), comando, _usuario, sendLineString);
                 _frontEnd->sendPacote(comando, sendLineString);
                 break;
-            /*
-            case Comando::POOL:
-                _frontEnd->printPool();
-                break;
-            */
             case Comando::NO:
             default:
                 StringUtils::printWarning("Comando nao reconhecido, os comando disponiveis sao \"SEND <mensagem>\" e \"FOLLOW <@usuario>\"");
@@ -79,11 +73,9 @@ void Cliente::interact() {
 
     pthread_create(&thread1, NULL, Cliente::ProcessKeyboardInputStatic, this);
     pthread_create(&thread2, NULL, Cliente::receiveNotificationsStatic, this);
-    //pthread_create(&thread3, NULL, Cliente::receiveMessagesOtherServersStatic, this);
 
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
-    //pthread_join(thread3, NULL);
 }
 
 void* Cliente::receiveMessagesOtherServersStatic(void* context) {

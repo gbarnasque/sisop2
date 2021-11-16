@@ -52,8 +52,6 @@ Servidor::Servidor(char* port, char* primaryIp, char* primaryPort) {
     _isPrimary = false;
     _minPoolSize = 0;
     _triesToConnectToPrimary = 0;
-
-    //pthread_create(&_handleServer, NULL, &Servidor::handleServerStatic, this);
 }
 
 bool Servidor::connectToPrimary(char* primaryIp, char* primaryPort) {
@@ -107,35 +105,14 @@ void Servidor::ProcessKeyboardInput() {
                 printPerfis();
                 break;
             default:
-                StringUtils::printDanger("Teste disconnect");
-                p.setStatus(Status::OK);
-                p.setComando(Comando::DISCONNECT);
-                p.setPayload("teste disconect");
-                _serverSocket->sendMessage(5, p.serializeAsCharPointer());
                 break;
         }
     }
 }
 
-void Servidor::printPool() {
-    if(_pool.size() != 0) {
-        for(int i=0; i<_pool.size(); i++) {
-            StringUtils::printBold("Servidor " + to_string(i) + ":");
-            StringUtils::printWithRandomPrefixColor(to_string(_pool[i].PID), "PID:");
-            StringUtils::printWithRandomPrefixColor(_pool[i].Ip, "IP:");
-            StringUtils::printWithRandomPrefixColor(_pool[i].Port, "Port:");
-            StringUtils::printWithRandomPrefixColor(to_string(_pool[i].FD), "FD:");
-            StringUtils::printWithRandomPrefixColor((_pool[i].isAlive ? "Sim": "Nao"), "IsAlive:");
-        }
-    } 
-    else {
-        StringUtils::printInfo("Servidor ainda não possui servidores backup conectados");
-    }
-}
-
 void* Servidor::handleNotificationsStatic(void* context) {
     ((Servidor*)context)->handleNotifications();
-    //StringUtils::printDanger("Não era para chegar aquiu");
+    //StringUtils::printDanger("Não era para chegar aqui");
     pthread_exit(NULL);
 }
 
@@ -152,22 +129,16 @@ void Servidor::handleNotifications() {
 void Servidor::start() {
     StringUtils::printSuccess("Servidor iniciado");
 
+    pthread_create(&_notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
+
     if(!_isPrimary) {
-        //pthread_t servidorPrimarioHandler;
-        //pthread_create(&servidorPrimarioHandler, NULL, &Servidor::servidorPrimarioHandlerStatic, this);
-        pthread_t notificationHandler;
-        pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
         servidorPrimarioHandler();
     }
     else {
-        pthread_t notificationHandler;
-        pthread_create(&notificationHandler, NULL, &Servidor::handleNotificationsStatic, this);
         while(true) {
-            
             sem_wait(&_semaphorCurrentFD); // Espera a thread que vai lidar com o cliente pegar o clientFD
             StringUtils::printInfo("Esperando algum cliente/servidor conectar... ");
             _currentFD = _serverSocket->acceptConnection();
-            StringUtils::printSuccess("aceitou conexão");
             if(_currentFD == -1) {
                 StringUtils::printDanger("Houve um problema ao conectar com o cliente");
                 sem_post(&_semaphorCurrentFD);
@@ -212,11 +183,6 @@ void Servidor::start() {
     }
 }
 
-void* Servidor::servidorPrimarioHandlerStatic(void* context) {
-    ((Servidor*)context)->servidorPrimarioHandler();
-    pthread_exit(NULL);
-}
-
 void Servidor::servidorPrimarioHandler() {
     char rcvLine[MAX_MSG];
     memset(rcvLine, 0, sizeof(rcvLine));
@@ -224,12 +190,19 @@ void Servidor::servidorPrimarioHandler() {
     while((bytesRead = _primaryServerSocket->receive(rcvLine, MAX_MSG)) != -1 ) {
         if(bytesRead == 0) {
             // Start election
+            _poolSize = _pool.size();
+            StringUtils::printWithPrefix(to_string(_poolSize), "Tamanho da Pool: ", Color::NONE);
+            resetPool();
+            resetClientSockets();
+            _minPoolSize = 0;
             if(election()) {
                 restartAsPrimary();
             }
             else {
+                _triesToConnectToPrimary = 0;
+                usleep(TIME_TO_RETRY);
                 while(!connectToPrimary(_primaryServerSocket->getSocketIp(), _primaryServerSocket->getSocketPort())) {
-                    usleep(500*1000); // microssegundos = milissegundos*1000
+                    usleep(TIME_TO_RETRY); // microssegundos = milissegundos*1000
                     _triesToConnectToPrimary++;
                     if(_triesToConnectToPrimary == MAX_RETRIES) {
                         _minPoolSize++;
@@ -239,17 +212,13 @@ void Servidor::servidorPrimarioHandler() {
                         _triesToConnectToPrimary = 0;
                     }
                 }
-                resetPool();
-                resetClientSockets();
-                _minPoolSize=0;
-                _triesToConnectToPrimary=0;
             }
-            
         }
         std::vector<Pacote> pacotes = Pacote::getMultiplosPacotes(rcvLine);
         Pacote send;
         for(std::vector<Pacote>::iterator pacote = pacotes.begin(); pacote != pacotes.end(); pacote++) {
             if(pacote->getStatus() == Status::OK){
+                StringUtils::printBold(pacote->serializeAsString());
                 switch (pacote->getComando())
                 {
                     case Comando::CONNECT:
@@ -276,15 +245,6 @@ void Servidor::servidorPrimarioHandler() {
                         send.setStatus(Status::OK);
                         sem_post(&_semaphorNotifications); 
                         break;
-
-                    /*case Comando::
-                        StringUtils::printDanger(pacote->getPayload());
-                        handleExit();
-                        break;
-                        */
-                    case Comando::POOL:
-
-                        break;
                     default:
                         if(pacote->getPayload().size() != 0);
                             StringUtils::printSuccess(pacote->getPayload());
@@ -306,8 +266,8 @@ void Servidor::servidorPrimarioHandler() {
 }
 
 void Servidor::restartAsPrimary() {
-    resetClientSockets();
-    resetPool();
+    //StringUtils::printInfo("Tentando reiniciar como primário");
+    usleep(TIME_TO_RESTART);
     _serverSocket->closeSocket();
     _primaryServerSocket->closeSocket();
     _serverSocket = new TCPSocket(_primaryServerSocket->getSocketIp(), _primaryServerSocket->getSocketPort());
@@ -320,18 +280,12 @@ void Servidor::restartAsPrimary() {
         StringUtils::printDanger("Erro ao comecar o listen do servidor");
         exit(2);
     }
-    /*Pacote p;
-    p.setComando(Comando::NO);
-    p.setPayload("Servidor reestabelecido.");
-    p.setStatus(Status::OK);
-    sendPacoteToAllClients(p);*/
-    //sem_post(&_semaphorCurrentFD);
+    StringUtils::printInfo("Reiniciado como primário");
     start();
 }
 
 bool Servidor::election() {
-    //StringUtils::printBold(_serverSocket->getSocketPort());
-    return (_pool.size() == _minPoolSize);
+    return (_poolSize == _minPoolSize);
 }
 
 void Servidor::resetPool() {
@@ -342,25 +296,6 @@ void Servidor::resetClientSockets() {
     for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
         perfil->_socketDescriptors.clear();
     }
-}
-
-void* Servidor::handleServerStatic(void* context) {
-    ((Servidor*)context)->handleServer();
-    pthread_exit(NULL);
-}
-void Servidor::handleServer() {
-    int n;
-    int currentFD = _currentFD;
-    char buffer[MAX_MSG];
-    sem_post(&_semaphorCurrentFD);
-
-    while (true)
-    {
-        /* code */
-    }
-
-    //sem_post(&_semaphorCurrentFD);
-
 }
 
 Pacote Servidor::handleServerConnect(std::string pid, std::string payload, int FD) {
@@ -410,18 +345,6 @@ void Servidor::sendPacoteToAllServidoresBackup(Pacote pacote) {
                 continue;
         }
     }
-}
-
-void Servidor::sendPacoteToAllClients(Pacote pacote) {
-    sem_wait(&_semaphorPerfisInclusion);
-    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
-        sem_wait(&perfil->_semaphorePerfil);
-        for(int i=0; i<perfil->_socketDescriptors.size(); i++) {
-            _serverSocket->sendMessage(perfil->_socketDescriptors[i], pacote.serializeAsString().c_str());
-        }
-        sem_post(&perfil->_semaphorePerfil);
-    }
-    sem_post(&_semaphorPerfisInclusion);
 }
 
 void* Servidor::handleClientStatic(void* context) {
@@ -761,22 +684,10 @@ void Servidor::printPerfis() {
     }
 }
 
-Perfil Servidor::getPerfilByUsername(string username){
-    Perfil result;
-    result._usuario = "ERRO";
-    for(Perfil p : _perfis) {
-        if(p._usuario == username){
-            result = p;
-        }
-    }
-    return result;
-}
-
 void Servidor::gracefullShutDown() {
     
     if(_isPrimary) {
         saveFile();
-        //notifyAllConnectedClients();
     }
     sem_destroy(&_semaphorCurrentFD);
     sem_destroy(&_semaphorNotifications);
@@ -825,16 +736,18 @@ void Servidor::fillFromFile() {
     file.close();
 }
 
-void Servidor::notifyAllConnectedClients() {
-    Pacote* send = new Pacote();
-    send->setComando(Comando::DISCONNECT);
-    send->setPayload("O Servidor esta sendo desligado!");
-    for(std::vector<Perfil>::iterator perfil = _perfis.begin(); perfil != _perfis.end(); perfil++) {
-        sem_wait(&perfil->_semaphorePerfil);
-        for(int i=0; i<perfil->_socketDescriptors.size(); i++) {
-            int socket = perfil->_socketDescriptors[i];
-            _serverSocket->sendMessage(socket, send->serializeAsString().c_str());
+void Servidor::printPool() {
+    if(_pool.size() != 0) {
+        for(int i=0; i<_pool.size(); i++) {
+            StringUtils::printBold("Servidor " + to_string(i) + ":");
+            StringUtils::printWithRandomPrefixColor(to_string(_pool[i].PID), "PID:");
+            StringUtils::printWithRandomPrefixColor(_pool[i].Ip, "IP:");
+            StringUtils::printWithRandomPrefixColor(_pool[i].Port, "Port:");
+            StringUtils::printWithRandomPrefixColor(to_string(_pool[i].FD), "FD:");
+            StringUtils::printWithRandomPrefixColor((_pool[i].isAlive ? "Sim": "Nao"), "IsAlive:");
         }
-        sem_post(&perfil->_semaphorePerfil);
+    } 
+    else {
+        StringUtils::printInfo("Servidor ainda não possui servidores backup conectados");
     }
 }

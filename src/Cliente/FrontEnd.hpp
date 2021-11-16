@@ -17,6 +17,9 @@
 #define MIN_USER_LEN 4
 #define MAX_USER_LEN 20
 
+#define MAX_RETRIES 5
+#define TIME_TO_RETRY 2000*1000 // microssegundos = milissegundos*1000
+
 class FrontEnd  {
     private:
         TCPSocket* _socket;
@@ -25,6 +28,7 @@ class FrontEnd  {
 
         sem_t _semaphorSendPacote;
         bool _serverDown;
+        int _triesToConnect;
 
     public:
         FrontEnd(char* serverIp, char* serverPort, char* user);

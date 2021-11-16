@@ -19,8 +19,9 @@ typedef void * (*THREADFUNCPTR)(void *);
 
 #define MAX_MSG 5*1024
 #define MAX_CLIENTS 20
-#define MAX_RETRIES 6
-
+#define MAX_RETRIES 5
+#define TIME_TO_RETRY 500*1000 // microssegundos = milissegundos*1000
+#define TIME_TO_RESTART 250*1000
 
 class Servidor {
     private: 
@@ -35,7 +36,6 @@ class Servidor {
 
         void saveFile();
         void fillFromFile();
-        void notifyAllConnectedClients();
         Pacote sendNotificacao(std::string from, int idNotificacao);
         void sendNotificacoes(Perfil* to);
 
@@ -44,10 +44,9 @@ class Servidor {
         std::vector<ServerPerfil> _pool;
 
         int _currentBackupFD;
-        sem_t _semaphorBackupFD;
-        pthread_t _handleServer;
-        pthread_t _otherBackupsThread;
+        pthread_t _notificationHandler;
 
+        int _poolSize;
         int _minPoolSize;
         int _triesToConnectToPrimary;
         void printPool();
@@ -56,15 +55,14 @@ class Servidor {
         Servidor(char* port, char* primaryIp, char* primaryPort);
         void start();
         void info();
-        void handleClient();
-
+    
         Pacote handleClienteConnect(std::string usuario, int socketDescriptor);
         void handleDisconnect(std::string usuario, int socketDescriptor);
         Pacote handleSend(std::string usuario, time_t timestamp, std::string payload, int tamanhoPayload);
         Pacote handleFollow(std::string usuarioSeguido, std::string usuarioSeguidor);
 
-        Perfil getPerfilByUsername(string username);
         static void* handleClientStatic(void* context);
+        void handleClient();
         static bool checkStartupParameters(int argc, char** argv);
         static void help();
         void printPerfis();
@@ -74,19 +72,14 @@ class Servidor {
         static void* handleNotificationsStatic(void* context);
         void handleNotifications();
 
-
+        /* Novas funcionalidades para entrega 2*/
         static void* ProcessKeyboardInputStatic(void* context);
         void ProcessKeyboardInput();
 
-        static void* handleServerStatic(void* context);
-        void handleServer();
         Pacote handleServerConnect(std::string pid, std::string payload, int FD);
-        void sendPacoteToAllClients(Pacote pacote);
 
-        static void* servidorPrimarioHandlerStatic(void* context);
         void servidorPrimarioHandler();
 
-        void connectToAllServidoresBackup();
         void sendPacoteToAllServidoresBackup(Pacote pacote);
         void restartAsPrimary();
         void resetClientSockets();
